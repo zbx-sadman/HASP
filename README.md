@@ -11,7 +11,7 @@ Zabbix's LLD available to:
 - _Slot_ - Slowly, but more usable than Server's LLD, because have linked {#SERVERNAME}, {#SERVERID} & {#MAX} (max available licenses on slot);
 
 How to use:
-- Just add to Zabbix Agent config, which run on WSUS host this string: _UserParameter=nethasp.miner[*], powershell -File C:\zabbix\nethasp\nethasp.ps1 -Action "$1" -Object "$2" -Key "$3" -Id "$4" -Slot "$5"
+- Just add to Zabbix Agent config, which run on WSUS host this string: _UserParameter=nethasp.miner[*], powershell -File C:\zabbix\nethasp\nethasp.ps1 -Action "$1" -Object "$2" -Key "$3" -Id "$4" -Slot "$5"_;
 - Put _nethasp\_miner.ps1, HaspMonitor.exe, hsmon.dll, nethasp.ini_ to _C:\zabbix\nethasp_ dir;
 - Change NH_SERVER_ADDR into _nethasp.ini_ to yours NetHASP server or enable Broadcast feature;
 - Make unsigned .ps1 script executable with _Set-ExecutionPolicy RemoteSigned_;
@@ -20,7 +20,7 @@ How to use:
 - Enjoy.
 
 Hints:
-- All HaspMonitor answers are parsed to hash and available to read with **-Key** option. For example: Result of "GET SERVERINFO,ID=.." request - "HS,ID=1898799265,NAME=\"StuffSever\",PROT=\"UDP(172.16.0.10)\",VER=\"8.310\",OS=\"WIN32\""  - will be parsed to hash array and can be addressed: _-Key OS_ will return "WIN32"
-- NetHASP server can periodically change server ID. And you can use *-Id* option with detected with "GET SERVERS" command server name: -Id "StuffSever". Miner detect that name is specified and do "GET SERVERS" command, take ID and use it with other operation.
+- All HaspMonitor answers are parsed to hash and available to read with **-Key** option. For example: Result of "GET SERVERINFO,ID=.." request - _HS,ID=1898799265,NAME="StuffSever",PROT="UDP(172.16.0.10)",VER="8.310",OS="WIN32"_  - will be parsed to hash array and can be addressed: _-Key OS_ will return _WIN32_;
+- NetHASP server can periodically change Server ID. And you can use **-Id** option with detected with "GET SERVERS" command server name: _-Id "StuffSever"_. Miner detect that name is specified do "GET SERVERS" command, take ID and use it with other operation.
 
 
