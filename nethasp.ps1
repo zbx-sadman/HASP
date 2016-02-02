@@ -1,4 +1,5 @@
 <#
+
 NetHASP Miner
 Version 0.9
 
@@ -6,6 +7,7 @@ Return NetHASP metrics values, make LLD-JSON for Zabbix
 
 zbx.sadman@gmail.com (c) 2016
 https://github.com/zbx-sadman
+
 #>
 
 Param (
@@ -31,13 +33,13 @@ Function Get-NetHASPData {
    # Test Stage 0 response
    if (-Not $ExecuteResults[0].ContainsKey("OK")) {
       $Result.msg = "Stage 0 ($($StageCommands[0])) error: $($ExecuteResults[0].MSG)";
-  # Test Stage 1 response
+   # Test Stage 1 response
    } elseif (-Not $ExecuteResults[1].ContainsKey("OK")) {
       $Result.msg = "Stage 1 ($($StageCommands[1])) error: $($ExecuteResults[1].MSG)";
-  # Test Stage 3 response
+   # Test Stage 3 response
    } elseif (-Not $ExecuteResults[2] -Or $ExecuteResults[2].ContainsKey("EMPTY")) {
       $Result.msg = "Stage 2 error: no data recieved";
-  # No errors found. Request result processeed
+   # No errors found. Request result processeed
    } else {
       $Result.isSuccess = $True;
       $Result.Data = $ExecuteResults | ? { -not $_.ContainsKey("OK") }
@@ -49,25 +51,35 @@ Function Get-NetHASPData {
    }
 }
 
-
-
 Function Make-JSON {
-  Param ([PSObject]$InObject, [array]$ObjectProperties, [boolean]$Pretty);
+  Param ([PSObject]$InObject, [array]$ObjectProperties, [switch]$Pretty);
   # Pretty json contain spaces, tabs and new-lines
   if ($Pretty) { $CRLF = "`n"; $Tab = "    "; $Space = " "; } else {$CRLF = $Tab = $Space = "";}
   # Init JSON-string $InObject
-  $Result = "{$CRLF$Space`"data`":[$CRLF";
+  $Result += "{$CRLF$Space`"data`":[$CRLF";
   # Take each Item from $InObject, get Properties that equal $ObjectProperties items and make JSON from its
-  $k = 0;
-  ForEach ($Object in $InObject) {$k++;
-     $Result += "$Tab$Tab{$Space";
+  $nCntObject = 0; $nMaxObject = $InObject | How-Much
+  $nMaxObjectProps =  $ObjectProperties | How-Much;
+  ForEach ($Object in $InObject) {
+     $Result += "$Tab$Tab{$Space"; 
+     $nCntObject++; 
+     $nCntObjectProps = 0;
      # Process properties. No comma printed after last item
-     $ObjectProperties | % {$i = 0} {$i++; $Result += "`"{#$_}`":$Space`"$($Object.$_)`"$(&{if ($i -lt ($ObjectProperties | Measure).Count) {",$Space"} })"}
+     ForEach ($Property in $ObjectProperties) {
+        $nCntObjectProps++; 
+        $Result += "`"{#$Property}`":$Space`"$($Object.$Property)`"$(&{if ($nCntObjectProps -lt $nMaxObjectProps) {",$Space"} })"
+     }
      # No comma printed after last string
-     $Result += " }$(&{if ($k -lt ($InObject | Measure).Count) {",$Space"} })$CRLF";
+     $Result += " }$(&{if ($nCntObject -lt $nMaxObject) {",$Space"} })$CRLF";
   }
   # Finalize and return JSON
   "$Result$Space]$CRLF}";
+}
+
+Function How-Much { 
+   Begin   { $Result = 0; }  
+   Process { $Result++; }  
+   End     { $Result; }
 }
 
 # if needProcess is False - $Result is not need to convert to string and etc 
@@ -83,38 +95,34 @@ switch ($Action) {
      #
      # Discovery given object, make json for zabbix
      #
-     ('Discovery') {
+     'Discovery' {
          $needProcess = $False;
          switch ($Object) {
-            ('Server') {
+            'Server' {
                 $Result = Get-NetHASPData -StageCommand "GET SERVERS"; 
                 $InObject = $Result.Data; 
                 $ObjectProperties = @("NAME", "ID");
             }
-            ('Slot')   {
+            'Slot'   {
                 $Servers = Get-NetHASPData -StageCommand "GET SERVERS"; 
-                $Slots = $Servers | % { Get-NetHASPData -StageCommand "GET SLOTS,MA=1,ID=$($_.Data.ID)" }
-                $InObject = $Slots | % {$a = @()} { $cid = $_.Data.ID; $a += @{"SERVERNAME" = ($Servers | ? {$_.Data.ID -eq $cid}).Data.Name; "SERVERID" = $_.Data.ID; "SLOT" = $_.Data.Slot;  "MAX" = $_.Data.Max}} {$a}
+                $Slots =  $Servers | % { Get-NetHASPData -StageCommand "GET SLOTS,MA=1,ID=$($_.Data.ID)" }
+                $InObject = $Slots | % { $a = @() } { $cid = $_.Data.ID; $a += @{"SERVERNAME" = ($Servers | ? {$_.Data.ID -eq $cid}).Data.Name; "SERVERID" = $_.Data.ID; "SLOT" = $_.Data.Slot;  "MAX" = $_.Data.Max}} {$a}
                 $ObjectProperties = @("SERVERNAME", "SERVERID", "SLOT", "MAX");
             }
-            default    { $needProcess = $False; $Result = "Incorrect object: '$Object'";}
+            default  { $needProcess = $False; $Result = "Incorrect object: '$Object'";}
          }
-        $Result = Make-JSON -InObject $InObject -ObjectProperties $ObjectProperties -Pretty $True;
+        $Result = Make-JSON -InObject $InObject -ObjectProperties $ObjectProperties -Pretty;
      }
      #
      # Get metrics from object (real or virtual)
      #
-     ('Get') {
+     'Get' {
         switch ($Object) {
-            ('Server')  {
-              $Result = Get-NetHASPData -StageCommand "GET SERVERINFO,MA=1,ID=$Id";
-            }
-            ('Slot')  {
-              $Result = Get-NetHASPData -StageCommand "GET SLOTINFO,MA=1,ID=$Id,SLOT=$Slot";
-            }
-            default   { $needProcess = $False; $Result = "Incorrect object: '$Object'";}
+            'Server'  { $Result = Get-NetHASPData -StageCommand "GET SERVERINFO,MA=1,ID=$Id"; }
+            'Slot'    { $Result = Get-NetHASPData -StageCommand "GET SLOTINFO,MA=1,ID=$Id,SLOT=$Slot"; }
+            default   { $needProcess = $False; $Result = "Incorrect object: '$Object'"}
         }  
-        $Result = &{ if ($needProcess -And $Result.IsSuccess -And $Key) { $Result.Data.$Key.ToString() } else {""} }
+        if ($needProcess -And $Result.IsSuccess -And $Key) { $Result = $Result.Data.$Key.ToString() }
      }
      #
      # Error
