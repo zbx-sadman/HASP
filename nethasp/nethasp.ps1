@@ -8,6 +8,10 @@ Return NetHASP metrics values, make LLD-JSON for Zabbix
 zbx.sadman@gmail.com (c) 2016
 https://github.com/zbx-sadman
 
+Actions: Discovery, Get
+Objects: Server, Slot
+ 
+
 #>
 
 Param (
