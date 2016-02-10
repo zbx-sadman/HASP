@@ -1,4 +1,4 @@
-## NetHASP Miner
+## NetHASP
 This is a little Powershell script that fetch metric's values from NetHASP Monitor.
 Tanx to _Tor_ user for [HaspMonitor.exe](https://www.zabbix.com/forum/showpost.php?p=96243&postcount=4) utility.
 
@@ -41,4 +41,3 @@ How to use:
  
 Hints:
 - Be sure that you filter LLD to leave only 'HASP' or 'ALADDIN' records.
--
