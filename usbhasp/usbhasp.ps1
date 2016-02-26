@@ -19,7 +19,8 @@ Param (
 [string]$Action,
 [string]$Object,
 [string]$Key,
-[string]$Id
+[string]$Id,
+[switch]$defaultConsoleWidth
 )
 
 
@@ -92,7 +93,7 @@ if ($needAction) {
    }  
 }
 # Break lines on console output fix - buffer format to 255 chars width lines 
-mode con cols=255
+if (!$defaultConsoleWidth) { mode con cols=255 }
 
 # Normalize String object
 ($Result | Out-String).trim();

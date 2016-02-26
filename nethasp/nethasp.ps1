@@ -20,14 +20,15 @@ Param (
 [string]$Key,
 [string]$Id,
 [string]$Slot,
-[string]$consoleCP
+[string]$consoleCP,
+[switch]$defaultConsoleSize
 )
 
 Function Get-NetHASPData {
    Param ([String]$StageCommand);
 
-   $HaspMonitor = "C:\zabbix\nethasp\HaspMonitor.exe"
-   $HaspInitFile = "C:\zabbix\nethasp\nethasp.ini"
+   $HaspMonitor  = "C:\zabbix\nethasp\scripts\HaspMonitor.exe"
+   $HaspInitFile = "C:\zabbix\nethasp\scripts\nethasp.ini"
    $StageCommands = @("SET CONFIG,FILENAME=$HaspInitFile", "SCAN SERVERS")
    $StageCommands += $StageCommand
 
@@ -83,7 +84,7 @@ Function Make-JSON {
 
 Function How-Much { 
    Begin   { $Result = 0; }  
-   Process { $Result++; }  
+   Process { if ($_) { $Result++; } }  
    End     { $Result; }
 }
 
@@ -134,9 +135,10 @@ switch ($Action) {
      #
      default  { $Result = "Incorrect action: '$Action'"; }
 }  
+
 # Break lines on console output fix - buffer format to 255 chars width lines 
-mode con cols=255
+if (!$defaultConsoleSize) { mode con cols=255 }
 
 # Normalize String object
-($Result | Out-String).trim();
+($Result | Out-String).Trim();
 
