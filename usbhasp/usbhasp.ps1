@@ -104,8 +104,11 @@ Function Prepare-ToZabbix {
      [PSObject]$InObject
   );
   $InObject = ($InObject.ToString());
-  $InObject.Replace("\", "\\");
-  $InObject.Replace("`"", "\`"");
+
+  $InObject = $InObject.Replace("\", "\\");
+  $InObject = $InObject.Replace("`"", "\`"");
+
+  $InObject;
 }
 
 #
@@ -272,4 +275,3 @@ if (!$defaultConsoleWidth) {
 Write-Verbose "$(Get-Date) Finishing";
 
 "$Result";
-
