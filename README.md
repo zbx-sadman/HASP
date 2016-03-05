@@ -21,7 +21,7 @@ Actions:
 - _Discovery_ - Make Zabbix's LLD JSON;
 - _Get_       - Get metric of object collection's item;
 - _Count_     - Count collection's items.
-- _DoCommand_ - Do NetHASP Monitîr command that not required connection to server (HELP, VERSION). Command must be specified with -Key parameter
+- _DoCommand_ - Do NetHASP MonitÃ®r command that not required connection to server (HELP, VERSION). Command must be specified with -Key parameter
 
 Zabbix's LLD available to: 
 - _Server_ ;
@@ -42,8 +42,10 @@ Now running of Miner so simple - just use parameters to specify:
 - _-LoginID_  - to additional objects selecting by login Index;
 - _-ErrorCode_ - what must be returned if any process error will be reached;
 - _-ConsoleCP_ - codepage of Windows console. Need to properly convert output to UTF-8;
-- _-DefaultConsoleWidth_ - to leave default console width and not grow its to $CONSOLE_WIDTH (see .ps1 code);
+- _-DefaultConsoleWidth_ - to leave default console width and not grow its to CONSOLE_WIDTH (see .ps1 code);
 - _-Verbose_ - to enable verbose messages;
+
+Examples:
 
     # Get output of NetHASP Monitor VERSION command
     powershell -NoProfile -ExecutionPolicy "RemoteSigned" -File "nethasp.ps1" -Action "DoCommand" -Key "VERSION" -defaultConsoleWidth
@@ -56,6 +58,7 @@ Now running of Miner so simple - just use parameters to specify:
 
     # Show formatted list of 'Module' object(s) metrics. Verbose messages is enabled. Console width is not changed.
     ... nethasp.ps1 -Action "Get" -Object "Module" -defaultConsoleWidth -Verbose
+
 
 ###How to use with Zabbix
 1. Just include [zbx_hasp.conf](https://github.com/zbx-sadman/hasp/tree/master/Zabbix_Templates/zbx_hasp.conf) to Zabbix Agent config;
