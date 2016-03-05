@@ -1,47 +1,82 @@
 ## NetHASP 
-This is a little Powershell script that fetch metric's values from NetHASP Monitor.
+This is a little Powershell script that fetch metric's values from Sentinel/Aladdin HASP Network Monitor.
 Tanx to _Tor_ user for [HaspMonitor.exe](https://www.zabbix.com/forum/showpost.php?p=96243&postcount=4) utility.
 
-***REWORKED***
+Actual release 1.0
+
+**Note**
+Since release v1.0 NetHASP Miner do not use _HaspMonitor.exe_ to avoid runtime overheads. Wrapper DLL for _hsmon.dll_ will be compiled on first run of the .ps1. 
+By virtue of certain .NET procedures first run will be longer that other. Do not be nervous. 
+
+**Note**
+Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. You must use **32-bit instance of PowerShell** to avoid runtime errors while used on 64-bit systems. Its may be placed here: _%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe_.
 
 Support objects:
 - _Server_ - NetHASP server that can detected with "GET SERVERS" command;
-- _Slot_ - NetHASP Key Slot that can detected with "GET SLOTS ..." command.
+- _Module_ - NetHASP Module that can detected with "GET MODULES ..." command;
+- _Slot_ - NetHASP Slot that can detected with "GET SLOTS ..." command;
+- _Login_ - NetHASP Login that can detected with "GET LOGINS ..." command.
 
 Actions:
 - _Discovery_ - Make Zabbix's LLD JSON;
-- _Get_       - Get metric of object collection item;
-- _Count_     - Count collection items.
+- _Get_       - Get metric of object collection's item;
+- _Count_     - Count collection's items.
+- _DoCommand_ - Do NetHASP Monitîr command that not required connection to server (HELP, VERSION). Command must be specified with -Key parameter
 
-Zabbix's LLD available to:
-- _Server_ - A little fastest that Slot's LLD, but have few Zabbix's Macros;
-- _Slot_ - Slowly, but more usable than Server's LLD, because have linked {#SERVERNAME}, {#SERVERID} & {#MAX} (max available licenses on slot).
+Zabbix's LLD available to: 
+- _Server_ ;
+- _Module_ ;
+- _Slot_ ;
+- _Login_ ;
 
 ###How to use standalone
-    # Make Zabbix's LLD JSON for HASP Key Servers
-    powershell -NoProfile -ExecutionPolicy "RemoteSigned" -File "nethasp.ps1" -Action "Discovery" -Object "Server"
+At First - change inside .ps1 _HSMON_LIB_PATH_ variable's value to other, which point to place, where you store _hsmon.dll_ and _nethasp.ini_.
 
-    # Return number of HASP keys
-    ... usbhasp.ps1 -Action "Get" -Object "Slot" -Slot 17 -Key Curr -Id "1CServ.admnet.local"
+Now running of Miner so simple - just use parameters to specify:
+- _-Action_  - what need to do with collection or its item;
+- _-Object_  - rule to make collection;
+- _-Key_     - "path" to collection item's metric;
+- _-ServerID_ - to select NetHASP server from list;
+- _-ModuleID_ - to additional objects selecting by Module Address;
+- _-SlotID_   - to additional objects selecting by Slot;
+- _-LoginID_  - to additional objects selecting by login Index;
+- _-ErrorCode_ - what must be returned if any process error will be reached;
+- _-ConsoleCP_ - codepage of Windows console. Need to properly convert output to UTF-8;
+- _-DefaultConsoleWidth_ - to leave default console width and not grow its to $CONSOLE_WIDTH (see .ps1 code);
+- _-Verbose_ - to enable verbose messages;
 
-    ...
+    # Get output of NetHASP Monitor VERSION command
+    powershell -NoProfile -ExecutionPolicy "RemoteSigned" -File "nethasp.ps1" -Action "DoCommand" -Key "VERSION" -defaultConsoleWidth
+
+    # Make Zabbix's LLD JSON for NetHASP servers
+    ... nethasp.ps1 -Action "Discovery" -Object "Server" 
+
+    # Return number of used licenses on Slot #16 of stuffserver.contoso.com server. If processing error reached - return "-127"  
+    ... nethasp.ps1 -Action "Get" -Object "Slot" -Key "CURR" -ServerId "stuffserver.contoso.com" -SlotId "16" -ErrorCode "-127"
+
+    # Show formatted list of 'Module' object(s) metrics. Verbose messages is enabled. Console width is not changed.
+    ... nethasp.ps1 -Action "Get" -Object "Module" -defaultConsoleWidth -Verbose
 
 ###How to use with Zabbix
-1. Just add to Zabbix Agent config, which run on any host, that can find NeHASP servers, that string: _UserParameter=nethasp[*], powershell -File C:\zabbix\scripts\nethasp\nethasp.ps1 -Action "$1" -Object "$2" -Key "$3" -Id "$4" -Slot "$5"_;
-2. Put _nethasp.ps1, HaspMonitor.exe, hsmon.dll, nethasp.ini_ to _C:\zabbix\scripts\nethasp_ dir;
-3. Change NH_SERVER_ADDR into _nethasp.ini_ to yours NetHASP server or enable Broadcast feature;
-4. Make unsigned .ps1 script executable with _Set-ExecutionPolicy RemoteSigned_;
-5. Set Zabbix Agent's / Server's _Timeout_ to more that 3 sec (may be 10 or 30);
-6. Import [template](https://github.com/zbx-sadman/HASP/tree/master/Zabbix_Templates) to Zabbix Server;
-7. Enjoy.
+1. Just include [zbx_hasp.conf](https://github.com/zbx-sadman/hasp/tree/master/Zabbix_Templates/zbx_hasp.conf) to Zabbix Agent config;
+2. Check path to 32-bit PowerShell instance in _zbx_hasp.conf_ and change its if you need;
+3. Put _nethasp.ps1, hsmon.dll, nethasp.ini_ to _C:\zabbix\scripts\nethasp_ dir;
+4. Change NH_SERVER_ADDR into _nethasp.ini_ to yours NetHASP server or enable Broadcast feature;
+5. Make unsigned .ps1 script executable with _Set-ExecutionPolicy RemoteSigned_;
+6. Set Zabbix Agent's / Server's _Timeout_ to more that 3 sec (may be 10 or 30);
+7. Import [template](https://github.com/zbx-sadman/HASP/tree/master/Zabbix_Templates) to Zabbix Server;
+8. At first time run script to do any simply request (like _-Action DoCommand -Key "HELP"_ ) to let self-complie NetHASP monitor library wrapper. Its can be get some time; 
+9. Enjoy.
 
 **Note**
 Do not try import Zabbix v2.4 template to Zabbix _pre_ v2.4. You need to edit .xml file and make some changes at discovery_rule - filter tags area and change _#_ to _<>_ in trigger expressions. I will try to make template to old Zabbix.
 
 ###Hints
-- All HaspMonitor answers are parsed to hash and available to read with **-Key** option. For example: Result of "GET SERVERINFO,ID=.." request - _HS,ID=1898799265,NAME="StuffSever",PROT="UDP(172.16.0.10)",VER="8.310",OS="WIN32"_  - will be parsed to hash array and can be addressed: _-Key OS_ will return _WIN32_;
-- NetHASP server can periodically change Server ID. And you can use **-Id** option with detected with "GET SERVERS" command server name: _-Id "StuffSever"_. Miner detect that name is specified do "GET SERVERS" command, take ID and use it with other operation.
-
+- NetHASP server can periodically change Server ID. In this case use _-ServerId_ option with alphanumeric server name, that can be known by running script with  _-Action Get -Object Server_ options;
+- To see available metrics, run script only with _-Action Get -Object **Object**_ options;
+- To measure script runtime use _-Verbose_ command line switch;
+- Use _-ErrorCode_ options for monitoring systems events/triggers to runtime errors detection;
+- Running the script with PowerShell 3 and above may be require to enable PowerShell 2 compatible mode.
 
 ## USBHASP
 The same that NetHASP Miner, but used for monitoring Sentinel/Aladdin HASP USB keys, which installed locally or binded with USB/IP.
