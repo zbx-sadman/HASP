@@ -9,7 +9,7 @@ Since release v1.0 NetHASP Miner do not use _HaspMonitor.exe_ to avoid runtime o
 By virtue of certain .NET procedures first run will be longer that other. Do not be nervous. 
 
 **Note**
-Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. You must use **32-bit instance of PowerShell** to avoid runtime errors while used on 64-bit systems. Its may be placed here: _%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe_.
+Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. To avoid errors while run script on 64-bit systems you must use **32-bit instance of PowerShell**. Its may be placed here: _%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe_.
 
 Support objects:
 - _Server_ - NetHASP server that can detected with "GET SERVERS" command;
