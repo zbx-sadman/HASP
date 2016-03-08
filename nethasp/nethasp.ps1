@@ -6,10 +6,10 @@
         Return Sentinel/Aladdin HASP Network Monitor metrics value, make LLD-JSON for Zabbix
 
     .NOTES  
-        Version: 1.0
+        Version: 1.1
         Name: Aladdin HASP Network Monitor Miner
         Author: zbx.sadman@gmail.com
-        DateCreated: 05MAR2016
+        DateCreated: 07MAR2016
         Testing environment: Windows Server 2008R2 SP1, Powershell 2.0, Aladdin HASP Network Monitor DLL 2.5.0.0 (hsmon.dll)
 
         Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. You must use **32-bit instance of PowerShell** to avoid runtime errors while used on 64-bit systems. Its may be placed here:_%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe.
@@ -68,21 +68,21 @@
         Get output of NetHASP Monitor VERSION command
 
     .EXAMPLE 
-        nethasp.ps1 -Action "Discovery" -Object "Server" 
+        ... "nethasp.ps1" -Action "Discovery" -Object "Server" 
 
         Description
         -----------  
         Make Zabbix's LLD JSON for NetHASP servers
 
     .EXAMPLE 
-        nethasp.ps1 -Action "Get" -Object "Slot" -Key "CURR" -ServerId "stuffserver.contoso.com" -SlotId "16" -ErrorCode "-127"
+        ... "nethasp.ps1" -Action "Get" -Object "Slot" -Key "CURR" -ServerId "stuffserver.contoso.com" -SlotId "16" -ErrorCode "-127"
 
         Description
         -----------  
         Return number of used licenses on Slot #16 of stuffserver.contoso.com server. If processing error reached - return "-127"  
 
     .EXAMPLE 
-        usbhasp.ps1 -Action "Get" -Object "Module" -defaultConsoleWidth -Verbose
+        ... "nethasp.ps1" -Action "Get" -Object "Module" -defaultConsoleWidth -Verbose
 
         Description
         -----------  
@@ -90,82 +90,128 @@
 #>
 
 Param (
-        [Parameter(Mandatory = $True)] 
-        [string]$Action,
-        [Parameter(Mandatory = $False)]
-        [string]$Object,
-        [Parameter(Mandatory = $False)]
-        [string]$Key,
-        [Parameter(Mandatory = $False)]
-        [string]$ServerId,
-        [Parameter(Mandatory = $False)]
-        [string]$ModuleId,
-        [Parameter(Mandatory = $False)]
-        [string]$SlotId,
-        [Parameter(Mandatory = $False)]
-        [string]$LoginId,
-        [Parameter(Mandatory = $False)]
-        [string]$ErrorCode,
-        [Parameter(Mandatory = $False)]
-        [string]$ConsoleCP,
-        [Parameter(Mandatory = $False)]
-        [switch]$DefaultConsoleWidth
-      );
+   [Parameter(Mandatory = $True)] 
+   [ValidateSet('DoCommand', 'Discovery', 'Get', 'Count')]
+   [String]$Action,
+   [Parameter(Mandatory = $False)]
+   [ValidateSet('Server', 'Module', 'Slot', 'Login')]
+   [Alias('Object')]
+   [String]$ObjectType,
+   [Parameter(Mandatory = $False)]
+   [String]$Key,
+   [Parameter(Mandatory = $False)]
+   [String]$ServerId,
+   [Parameter(Mandatory = $False)]
+   [String]$ModuleId,
+   [Parameter(Mandatory = $False)]
+   [String]$SlotId,
+   [Parameter(Mandatory = $False)]
+   [String]$LoginId,
+   [Parameter(Mandatory = $False)]
+   [String]$ErrorCode,
+   [Parameter(Mandatory = $False)]
+   [String]$ConsoleCP,
+   [Parameter(Mandatory = $False)]
+   [Switch]$DefaultConsoleWidth
+);
+
+#Set-StrictMode –Version Latest
 
 # Set US locale to properly formatting float numbers while converting to string
 [System.Threading.Thread]::CurrentThread.CurrentCulture = "en-US";
 
 # Width of console to stop breaking JSON lines
-Set-Variable -Name "CONSOLE_WIDTH" -Value 255 -Option Constant -Scope Global;
+Set-Variable -Name "CONSOLE_WIDTH" -Value 255 -Option Constant;
 
-# Path to store dir for libs and ini files.
-Set-Variable -Name "HSMON_LIB_PATH" -Value "C:\\zabbix\\scripts\\nethasp\\" -Option Constant -Scope Global;
-#Set-Variable -Name "HSMON_LIB_PATH" -Value "D:\\pshell\\" -Option Constant -Scope Global
+# Path to dir where stored libs and ini files. 
+# Choose one:
+#    1. Path is the same that for .ps1 file
+Set-Variable -Name "HSMON_LIB_PATH" -Value (Split-Path $MyInvocation.InvocationName).Replace("\","\\") -Option Constant;
+#    2. Path is hardcoded for take a little speed and more orderliness
+#Set-Variable -Name "HSMON_LIB_PATH" -Value "C:\\zabbix\\scripts\\nethasp" -Option Constant -Scope Global;
 
 # Full paths to hsmon.dll and nethasp.ini
-Set-Variable -Name "HSMON_LIB_FILE" -Value "$($HSMON_LIB_PATH)hsmon.dll" -Option Constant -Scope Global;
-Set-Variable -Name "HSMON_INI_FILE" -Value "$($HSMON_LIB_PATH)nethasp.ini" -Option Constant -Scope Global;
+Set-Variable -Name "HSMON_LIB_FILE" -Value "$HSMON_LIB_PATH\\hsmon.dll" -Option Constant;
+Set-Variable -Name "HSMON_INI_FILE" -Value "$HSMON_LIB_PATH\\nethasp.ini" -Option Constant;
 
 # Full path to hsmon.dll wrapper, that compiled by this script
-Set-Variable -Name "WRAPPER_LIB_FILE" -Value "$($HSMON_LIB_PATH)wraphsmon.dll" -Option Constant -Scope Global;
+Set-Variable -Name "WRAPPER_LIB_FILE" -Value "$HSMON_LIB_PATH\\wraphsmon.dll" -Option Constant;
 
 # Timeout in seconds for "SCAN SERVERS" connection stage
-Set-Variable -Name "HSMON_SCAN_TIMEOUT" -Value 5 -Option Constant -Scope Global;
+Set-Variable -Name "HSMON_SCAN_TIMEOUT" -Value 5 -Option Constant;
 
-# Enumerate Objects. [int][NetHASPObjects]::DumpObject equal 0 due [int][NetHASPObjects]::AnyNonexistItem equal 0 too
-Add-Type -TypeDefinition "public enum NetHASPObjects { DumpObject, Server, Module, Slot, Login }";
+# Enumerate Objects. [int][NetHASPObjectType]::DumpType equal 0 due [int][NetHASPObjectType]::AnyNonexistItem equal 0 too
+Add-Type -TypeDefinition "public enum NetHASPObjectType { DumpType, Server, Module, Slot, Login }";
 
 ####################################################################################################################################
 #
 #                                                  Function block
 #    
 ####################################################################################################################################
-
 #
-#  Select object with ID if its given or with Any ID in another case
+#  Select object with Property that equal Value if its given or with Any Property in another case
 #
-filter IDEqualOrAny($Property, $Id) { if (($_.$Property -Eq $Id) -Or (!$Id)) { $_ } }
-
+Function PropertyEqualOrAny {
+   Param (
+      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [PSObject]$InputObject,
+      [PSObject]$Property,
+      [PSObject]$Value
+   );
+   Process {
+      # Do something with all objects (non-pipelined input case)  
+      ForEach ($Object in $InputObject) { 
+         If (($Object.$Property -Eq $Value) -Or (!$Value)) { $Object }
+      }
+   } 
+}
 
 #
 #  Prepare string to using with Zabbix 
 #
-Function Prepare-ToZabbix {
-  Param (
-     [Parameter(Mandatory = $true, ValueFromPipeline = $true)] 
-     [PSObject]$InObject
-  );
-  $InObject = ($InObject.ToString());
+Function PrepareTo-Zabbix {
+   Param (
+      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [PSObject]$InputObject,
+      [String]$ErrorCode,
+      [Switch]$NoEscape
+   );
+   Begin {
+      # Add here more symbols to escaping if you need
+      $EscapedSymbols = @('\', '"');
+   }
+   Process {
+      # Do something with all objects (non-pipelined input case)  
+      ForEach ($Object in $InputObject) { 
+         If (!$Object) {
+           # Put empty string or $ErrorCode to output  
+           If ($ErrorCode) { $ErrorCode } Else { "" }
+           Continue;
+         }
+         #Write-Verbose "$(Get-Date) Converting Windows DataTypes to equal Unix's / Zabbix's";
+         Switch (($Object.GetType()).Name) {
+            'String'   { }
+            'Boolean'  { $Object = [int]$Object; }
+            'DateTime' { $Object = (New-TimeSpan -Start (Get-Date -Date "01/01/1970") -End $Object).TotalSeconds; }
+             Default   { $Object = Out-String -InputObject $Object; }
+         }
+         # Normalize String object
+         $Object = $Object.ToString().Trim();
 
-  $InObject = $InObject.Replace("`"", "\`"");
-
-  $InObject;
+         If (!$NoEscape) { 
+            ForEach ($Symbol in $EscapedSymbols) { 
+               $Object = $Object.Replace($Symbol, "\$Symbol");
+            }
+         }
+         $Object;
+      }
+   }
 }
 
 #
 #  Convert incoming object's content to UTF-8
 #
-function ConvertTo-Encoding ([string]$From, [string]$To){  
+Function ConvertTo-Encoding ([String]$From, [String]$To){  
    Begin   {  
       $encFrom = [System.Text.Encoding]::GetEncoding($from)  
       $encTo = [System.Text.Encoding]::GetEncoding($to)  
@@ -178,80 +224,88 @@ function ConvertTo-Encoding ([string]$From, [string]$To){
 }
 
 #
-#  Return value of object's metric defined by key-chain from $Keys Array
-#
-Function Get-Metric { 
-   Param (
-      [Parameter(Mandatory = $true, ValueFromPipeline = $true)] 
-      [PSObject]$InObject, 
-      [array]$Keys
-   ); 
-   # Expand all metrics related to keys contained in array step by step
-   $Keys | % { if ($_) { $InObject = $InObject | Select -Expand $_ }};
-   $InObject;
-}
-
-#
-#  Convert Windows DateTime to Unix timestamp and return its
-#
-Function ConvertTo-UnixTime { 
-   Param (
-      [Parameter(Mandatory = $true, ValueFromPipeline = $true)] 
-      [PSObject]$EndDate
-   ); 
-
-   Begin   { 
-      $StartDate = Get-Date -Date "01/01/1970"; 
-   }  
-
-   Process { 
-      # Return unix timestamp
-      (New-TimeSpan -Start $StartDate -End $EndDate).TotalSeconds; 
-   }  
-}
-
-
-#
 #  Make & return JSON, due PoSh 2.0 haven't Covert-ToJSON
 #
 Function Make-JSON {
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $true)] 
-      [PSObject]$InObject, 
+      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [PSObject]$InputObject, 
       [array]$ObjectProperties, 
-      [switch]$Pretty
+      [Switch]$Pretty
    ); 
    Begin   {
-               # Pretty json contain spaces, tabs and new-lines
-               if ($Pretty) { $CRLF = "`n"; $Tab = "    "; $Space = " "; } else {$CRLF = $Tab = $Space = "";}
-               # Init JSON-string $InObject
-               $Result += "{$CRLF$Space`"data`":[$CRLF";
-               # Take each Item from $InObject, get Properties that equal $ObjectProperties items and make JSON from its
-               $itFirstObject = $True;
-           } 
+      [String]$Result = "";
+      # Pretty json contain spaces, tabs and new-lines
+      If ($Pretty) { $CRLF = "`n"; $Tab = "    "; $Space = " "; } Else { $CRLF = $Tab = $Space = ""; }
+      # Init JSON-string $InObject
+      $Result += "{$CRLF$Space`"data`":[$CRLF";
+      # Take each Item from $InObject, get Properties that equal $ObjectProperties items and make JSON from its
+      $itFirstObject = $True;
+   } 
    Process {
-               ForEach ($Object in $InObject) {
-                  if (-Not $itFirstObject) { $Result += ",$CRLF"; }
-                  $itFirstObject=$False;
-                  $Result += "$Tab$Tab{$Space"; 
-                  $itFirstProperty = $True;
-                  # Process properties. No comma printed after last item
-                  ForEach ($Property in $ObjectProperties) {
-                     if (-Not $itFirstProperty) { $Result += ",$Space" }
-                     $itFirstProperty = $False;
-                     $Result += "`"{#$Property}`":$Space`"$($Object.$Property | Prepare-ToZabbix)`""
-                  }
-                  # No comma printed after last string
-                  $Result += "$Space}";
-               }
-           }
-  End      {
-               # Finalize and return JSON
-               "$Result$CRLF$Tab]$CRLF}";
-           }
+      # Do something with all objects (non-pipelined input case)  
+      ForEach ($Object in $InputObject) {
+         If (-Not $itFirstObject) { $Result += ",$CRLF"; }
+         $itFirstObject=$False;
+         $Result += "$Tab$Tab{$Space"; 
+         $itFirstProperty = $True;
+         # Process properties. No comma printed after last item
+         ForEach ($Property in $ObjectProperties) {
+            If (-Not $itFirstProperty) { $Result += ",$Space" }
+            $itFirstProperty = $False;
+            $Result += "`"{#$Property}`":$Space`"$(PrepareTo-Zabbix -InputObject $Object.$Property)`"";
+         }
+         # No comma printed after last string
+         $Result += "$Space}";
+      }
+   }
+   End {
+      # Finalize and return JSON
+      "$Result$CRLF$Tab]$CRLF}";
+   }
 }
 
-function Compile-WrapperDLL() {
+#
+#  Return value of object's metric defined by key-chain from $Keys Array
+#
+Function Get-Metric { 
+   Param (
+      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [PSObject]$InputObject, 
+      [array]$Keys
+   ); 
+   Process {
+      # Do something with all objects (non-pipelined input case)  
+      ForEach ($Object in $InputObject) { 
+        # Expand all metrics related to keys contained in array step by step
+        ForEach ($Key in $Keys) { 
+           If ($Key) {
+              $Object = Select-Object -InputObject $Object -ExpandProperty $Key;
+	   }
+        }
+        $Object;
+      }
+   }
+}
+
+#
+#  Exit with specified ErrorCode or Warning message
+#
+Function Exit-WithMessage { 
+   Param (
+      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [String]$Message,
+      [String]$ErrorCode
+   ); 
+   If ($ErrorCode) { 
+      $ErrorCode;
+   } Else {
+      Write-Warning ($Message);
+   }
+   Exit;
+}
+
+Function Compile-WrapperDLL() {
    $WrapperSourceCode = 
 @"
    using System;
@@ -286,47 +340,31 @@ function Compile-WrapperDLL() {
    $CompilerParameters.CompilerOptions = "/unsafe /platform:x86";
    $CompilerParameters.OutputAssembly = $WRAPPER_LIB_FILE;
    Add-Type -TypeDefinition $WrapperSourceCode -Language CSharp -CompilerParameters $CompilerParameters;
-   If ($False -eq (Test-Path $WRAPPER_LIB_FILE)) {
+   If ($False -Eq (Test-Path $WRAPPER_LIB_FILE)) {
       Write-Warning "Wrapper library not found after compilation. Something wrong";
       Exit;
    }
 }
 
-#
-#  Exit with specified ErrorCode or Warning message
-#
-Function Exit-WithMessage { 
-   Param (
-      [Parameter(Mandatory = $true, ValueFromPipeline = $true)] 
-      [String]$Message 
-   ); 
-   if ($ErrorCode) { 
-      Write-Output ($ErrorCode);
-   } else {
-      Write-Warning ($Message);
-   }
-   Exit;
-}
-
 # Is this a Wow64 powershell host
-function Test-Wow64() {
-    return (Test-Win32) -and (test-path env:\PROCESSOR_ARCHITEW6432)
+Function Test-Wow64() {
+    Return ((Test-Win32) -And (test-path env:\PROCESSOR_ARCHITEW6432))
 }
 
 # Is this a 64 bit process
-function Test-Win64() {
-    return [IntPtr]::size -eq 8
+Function Test-Win64() {
+    Return ([IntPtr]::Size -Eq 8)
 }
 
 # Is this a 32 bit process
-function Test-Win32() {
-    return [IntPtr]::size -eq 4
+Function Test-Win32() {
+    Return ([IntPtr]::Size -Eq 4)
 }
 
 Function Get-NetHASPData {
    Param (
       [Parameter(Mandatory = $true, ValueFromPipeline = $true)] 
-      [String]$HASPMonitorCommand,
+      [String]$Command,
       [Switch]$SkipScanning,
       [Switch]$ReturnPlainText
    );
@@ -336,44 +374,56 @@ Function Get-NetHASPData {
    #    3. Do one or several GET* command   
 
    # Init connect to NetHASP module?   
+   $Result = "";
    if (-Not $SkipScanning) {
       # Processing stage 1
       Write-Verbose "$(Get-Date) Stage #1. Initializing NetHASP monitor session"
-      $ret = ([HASP.Monitor]::doCmd("SET CONFIG,FILENAME=$HSMON_INI_FILE")).Trim();
-      if ("OK" -ne $ret) { 
-         Exit-WithMessage("Error 'SET CONFIG' command: $ret"); 
+      $Result = ([HASP.Monitor]::doCmd("SET CONFIG,FILENAME=$HSMON_INI_FILE")).Trim();
+      if ('OK' -Ne $Result) { 
+         Exit-WithMessage -Message "Error 'SET CONFIG' command: $Result" -ErrorCode $ErrorCode; 
       }
    
       # Processing stage 2
       Write-Verbose "$(Get-Date) Stage #2. Scan NetHASP servers"
-      $ret = [HASP.Monitor]::doCmd("SCAN SERVERS");
-      $ScanSec = 0;
-      do {
+      $Result = [HASP.Monitor]::doCmd("SCAN SERVERS");
+      $ScanSeconds = 0;
+      Do {
          # Wait a second before check process state
          Start-Sleep -seconds 1
-         $ScanSec++; $ret = ([HASP.Monitor]::doCmd("STATUS")).Trim();
+         $ScanSeconds++; $Result = ([HASP.Monitor]::doCmd("STATUS")).Trim();
          #Write-Verbose "$(Get-Date) Status: $ret"
-      } while (("OK" -ne $ret) -And ($ScanSec -lt $HSMON_SCAN_TIMEOUT))
+      } While (('OK' -ne $Result) -And ($ScanSeconds -Lt $HSMON_SCAN_TIMEOUT))
 
       # Scanning timeout :(
-      if ($ScanSec -eq $HSMON_SCAN_TIMEOUT) {
-            Exit-WithMessage("'SCAN SERVERS' command error: timeout reached");
+      If ($ScanSeconds -Eq $HSMON_SCAN_TIMEOUT) {
+            Exit-WithMessage -Message "'SCAN SERVERS' command error: timeout reached" -ErrorCode $ErrorCode;
         }
     }
 
    # Processing stage 3
-   Write-Verbose "$(Get-Date) Stage #3. Execute '$HASPMonitorCommand' command";
-   $ret = ([HASP.Monitor]::doCmd($HASPMonitorCommand)).Trim();
+   Write-Verbose "$(Get-Date) Stage #3. Execute '$Command' command";
+   $Result = ([HASP.Monitor]::doCmd($Command)).Trim();
 
-   if ("EMPTY" -eq $ret) {
-      Exit-WithMessage("No data recieved");
+   If ('EMPTY' -eq $Result) {
+      Exit-WithMessage -Message "No data recieved" -ErrorCode $ErrorCode;
    } else {
       if ($ReturnPlainText) {
         # Return unparsed output 
-        $ret;
+        $Result;
       } else {
-        # Parse output and make PSObjects list to return
-        $ret -Split "`r`n" -Replace "`"" | ? {$_} | % {$_ -Split "," | % {$r = @{}} {$k,$v = $_.split("="); $r.$k = $v} {New-Object PSObject -Property $r}};
+        # Parse output and push PSObjects to output
+        # Remove double-quotes and processed lines that taking from splitted by CRLF NetHASP answer. 
+        ForEach ($Line in ($Result -Replace "`"" -Split "`r`n" )) {
+           If (!$Line) {Continue;}
+           # For every non-empty line do additional splitting to Property & Value by ',' and add its to hashtable
+           $Properties = @{};
+           ForEach ($Item in ($Line -Split ",")) {
+              $Property, $Value = $Item.Split('=');  `
+              $Properties.$Property = $Value;
+           } 
+           # Return new PSObject with hashtable used as properties list
+           New-Object PSObject -Property $Properties;
+        }
       }
    }
 }
@@ -387,7 +437,7 @@ Function Get-NetHASPData {
 Write-Verbose "$(Get-Date) Checking runtime environment...";
 
 # Script running into 32-bit environment?
-if ($False -eq (Test-Wow64)) {
+If ($False -Eq (Test-Wow64)) {
    Write-Warning "You must run this script with 32-bit instance of Powershell, due wrapper interopt with 32-bit Windows Library";
    Write-Warning "Try to use %WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe -File `"$($MyInvocation.InvocationName)`" [-OtherOptions ...]";
    Exit;
@@ -404,85 +454,90 @@ If ($False -eq (Test-Path $WRAPPER_LIB_FILE)) {
   Add-Type -Path $WRAPPER_LIB_FILE;
 }
 
-# Need to run one HASP command like HELP, VERSION?
-if ('DoCommand' -eq $Action) {
-   if ($Key) {
+# Need to run one HASP command like HELP, VERSION ?
+If ('DoCommand' -Eq $Action) {
+   If ($Key) {
        Write-Verbose "$(Get-Date) Just do command '$Key'";
        ([HASP.Monitor]::doCmd($Key)).Trim();
-   } else {
-      Exit-WithMessage("No HASPMonitor command given with -Key option");
+   } Else {
+      Exit-WithMessage -Message "No HASPMonitor command given with -Key option" -ErrorCode $ErrorCode;
    }
-   exit;
+   Exit;
 }
 
-$Keys = $Key.split(".");
+$Keys = $Key.Split(".");
 
-# Exit if object is not [NetHASPObjects]
-if (0 -eq [int]($Object -As [NetHASPObjects])) { Exit-WithMessage ("Unknown object: '$Object'"); }
+# Exit if object is not [NetHASPObjectType]
+#If (0 -Eq [int]($ObjectType -As [NetHASPObjectType])) { Exit-WithMessage -Message "Unknown object type: '$ObjectType'" -ErrorCode $ErrorCode; }
 
-Write-Verbose "$(Get-Date) Creating collection of specified object: '$Object'";
+Write-Verbose "$(Get-Date) Creating collection of specified object: '$ObjectType'";
 # Object must contain Servers data?
-if (($Object -As [NetHASPObjects]) -ge [NetHASPObjects]::Server) {
+if (($ObjectType -As [NetHASPObjectType]) -Ge [NetHASPObjectType]::Server) {
    Write-Verbose "$(Get-Date) Getting server list";
-   $Servers = "GET SERVERS" | Get-NetHASPData; 
+   $Servers = Get-NetHASPData -Command "GET SERVERS"; 
    if (-Not $Servers) { 
-      Exit-WithMessage ("No NetHASP servers found");
+      Exit-WithMessage -Message "No NetHASP servers found" -ErrorCode $ErrorCode;
    }
 
    Write-Verbose "$(Get-Date) Checking server ID";
    if ($ServerId) {
       # Is Server Name into $ServerId
-      if (-Not [regex]::IsMatch($ServerId,'^\d+$')) {
+      if (![RegEx]::IsMatch($ServerId,'^\d+$')) {
          # Taking real ID if true
          Write-Verbose "$(Get-Date) ID ($ServerId) was not numeric - probaly its hostname, try to find ID in servers list";
-         $ServerId = ($Servers | ? {$_.Name -eq $ServerId}).Id;
-         if (-Not $ServerId) {
-            Exit-WithMessage ("Server not found");
+         $ServerId = (PropertyEqualOrAny -InputObject $Servers -Property NAME -Value $ServerId).ID;
+         if (!$ServerId) {
+            Exit-WithMessage -Message "Server not found" -ErrorCode $ErrorCode;
          }
-         Write-Verbose "$(Get-Date) Got ID = $ServerId";
+         Write-Verbose "$(Get-Date) Got real ID ($ServerId)";
       }
    }
    Write-Verbose "$(Get-Date) Filtering... (ID=$ServerId)";
-   $Servers = $Servers | IDEqualOrAny "Id" $ServerId;
-   $Objects = $Servers;
+   $Objects = $Servers = PropertyEqualOrAny -InputObject $Servers -Property ID -Value $ServerId
 }
 
 # Object must be processed with Servers data?
-if (($Object -As [NetHASPObjects]) -ge [NetHASPObjects]::Module) {
+if (($ObjectType -As [NetHASPObjectType]) -ge [NetHASPObjectType]::Module) {
    Write-Verbose "$(Get-Date) Getting modules list"; 
-   $Modules = $Servers | % { "GET MODULES,ID=$($_.Id)" | Get-NetHASPData -SkipScanning} | IDEqualOrAny "MA" $ModuleId;
-   $Objects = $Modules;
+   $Modules = ForEach ($Server in $Servers) { 
+      Get-NetHASPData -Command "GET MODULES,ID=$($Server.ID)" -SkipScanning; 
+   }
+   $Objects = $Modules = PropertyEqualOrAny -InputObject $Modules -Property MA -Value $ModuleId
 }
 
 # Object must be processed with Servers+Modules data?
-if (($Object -As [NetHASPObjects]) -ge [NetHASPObjects]::Slot) {
+if (($ObjectType -As [NetHASPObjectType]) -ge [NetHASPObjectType]::Slot) {
    Write-Verbose "$(Get-Date) Getting slots list";
-   $Slots = $Modules | % { "GET SLOTS,ID=$($_.Id),MA=$($_.Ma)" | Get-NetHASPData -SkipScanning} | IDEqualOrAny "Slot" $SlotId;
-   $Objects = $Slots;
+   $Slots = ForEach ($Module in $Modules) { 
+      Get-NetHASPData -Command "GET SLOTS,ID=$($Module.ID),MA=$($Module.MA)" -SkipScanning; 
+   }
+   $Objects = $Slots = PropertyEqualOrAny -InputObject $Slots -Property SLOT -Value $SlotId
 }
 
 # Object must be processed with Servers+Modules+Slots data?
-if (($Object -As [NetHASPObjects]) -ge [NetHASPObjects]::Login) {
+If (($ObjectType -As [NetHASPObjectType]) -Ge [NetHASPObjectType]::Login) {
    Write-Verbose "$(Get-Date) Getting logins list";
    # LOGININFO ignore INDEX param and return list of Logins anyway
-   $Logins = $Slots | % { "GET LOGINS,ID=$($_.Id),MA=$($_.Ma),SLOT=$($_.Slot)" | Get-NetHASPData -SkipScanning} | IDEqualOrAny "Index" $LoginId;
-   $Objects = $Logins;
+   $Logins = ForEach ($Slot In $Slots) { 
+      Get-NetHASPData -Command "GET LOGINS,ID=$($Slot.ID),MA=$($Slot.MA),SLOT=$($Slot.SLOT)" -SkipScanning;
+   }
+   $Objects = $Logins = PropertyEqualOrAny -InputObject $Slots -Property INDEX -Value $LoginId
 }
 
-if (-Not $Objects) { 
-   Exit-WithMessage ("No objects found");
+If (!$Objects) { 
+   Exit-WithMessage -Message "No objects found" -ErrorCode $ErrorCode;
 }
 
-$Objects | % { $_ | Add-Member -MemberType NoteProperty -Name "ServerName" -Value ($Servers | IDEqualOrAny "Id" $_.Id).Name;
-               $_ | Add-Member -MemberType NoteProperty -Name "ServerId" -Value $_.Id; }
+ForEach ($Object in $Objects) {   
+  Add-Member -InputObject $Object -MemberType NoteProperty -Name "ServerName" -Value (PropertyEqualOrAny -InputObject $Servers -Property ID -Value $Object.ID).Name;
+  Add-Member -InputObject $Object -MemberType AliasProperty -Name "ServerID" -Value ID
+}
 
-Write-Verbose "$(Get-Date) Collection created";
-#$Objects 
-#exit
-Write-Verbose "$(Get-Date) Processing collection with action: '$Action'";
+Write-Verbose "$(Get-Date) Collection created, begin processing its with action: '$Action'";
 switch ($Action) {
    'Discovery' {
-       switch ($Object) {
+      [Array]$ObjectProperties = @();
+      Switch ($ObjectType) {
           'Server' {
              $ObjectProperties = @("SERVERNAME", "SERVERID");
           }
@@ -496,51 +551,43 @@ switch ($Action) {
           'Login' {
              $ObjectProperties = @("SERVERNAME", "SERVERID", "MA", "SLOT", "INDEX", "NAME");
           }
-          default  { Exit-WithMessage ("Unknown object: '$Object'"); }
        }
        Write-Verbose "$(Get-Date) Generating LLD JSON";
-       $Result = $Objects | Make-JSON -ObjectProperties $ObjectProperties -Pretty;
+       $Result =  Make-JSON -InputObject $Objects -ObjectProperties $ObjectProperties -Pretty;
    }
    'Get' {
-      if ($Keys) { 
+      If (!$Objects) {
+          Exit-WithMessage -Message "No objects in collection" -ErrorCode $ErrorCode;
+      }
+      If ($Keys) { 
          Write-Verbose "$(Get-Date) Getting metric related to key: '$Key'";
-         $Result = $Objects | Get-Metric -Keys $Keys;
-      } else { 
+         $Result = Get-Metric -InputObject $Objects -Keys $Keys;
+      } Else { 
          Write-Verbose "$(Get-Date) Getting metric list due metric's Key not specified";
-         $Result = $Objects | fl *;
+         $Result = $Objects;
       };
-    }
-    # Count selected objects
-    'Count' { 
-       Write-Verbose "$(Get-Date) Counting objects";  
-       # if result not null, False or 0 - return .Count
-       $Result = $(if ($Objects) { @($Objects).Count } else { 0 } ); 
-    }
-   default  { Exit-WithMessage ("Unknown action: '$Action'"); }
+      $Result = PrepareTo-Zabbix -InputObject $Result -ErrorCode $ErrorCode;
+   }
+   # Count selected objects
+   'Count' { 
+      Write-Verbose "$(Get-Date) Counting objects";  
+      # if result not null, False or 0 - return .Count
+      $Result = $(if ($Objects) { @($Objects).Count } else { 0 } ); 
+   }
+   default  { Exit-WithMessage -Message "Unknown action: '$Action'" -ErrorCode $ErrorCode; }
 }  
 
-Write-Verbose "$(Get-Date) Converting Windows DataTypes to equal Unix's / Zabbix's";
-switch (($Result.GetType()).Name) {
-   'Boolean'  { $Result = [int]$Result; }
-   'DateTime' { $Result = $Result | ConvertTo-UnixTime; }
-   'Object[]' { $Result = $Result | Out-String; }
-}
-
-# Normalize String object
-$Result = $Result.ToString().Trim();
-
 # Convert string to UTF-8 if need (For Zabbix LLD-JSON with Cyrillic chars for example)
-if ($consoleCP) { 
+If ($consoleCP) { 
    Write-Verbose "$(Get-Date) Converting output data to UTF-8";
    $Result = $Result | ConvertTo-Encoding -From $consoleCP -To UTF-8; 
 }
 
 # Break lines on console output fix - buffer format to 255 chars width lines 
-if (!$defaultConsoleWidth) { 
+If (!$DefaultConsoleWidth) { 
    Write-Verbose "$(Get-Date) Changing console width to $CONSOLE_WIDTH";
    mode con cols=$CONSOLE_WIDTH; 
 }
 
 Write-Verbose "$(Get-Date) Finishing";
-
-"$Result";
+$Result;

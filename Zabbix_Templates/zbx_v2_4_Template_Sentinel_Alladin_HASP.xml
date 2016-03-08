@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <zabbix_export>
     <version>2.0</version>
-    <date>2016-03-05T12:17:18Z</date>
+    <date>2016-03-08T05:23:00Z</date>
     <groups>
         <group>
             <name>Templates</name>
@@ -82,7 +82,7 @@ More details: https://www.zabbix.com/forum/showpost.php?p=96243&amp;postcount=4<
                             <snmp_community/>
                             <multiplier>0</multiplier>
                             <snmp_oid/>
-                            <key>usbhasp[get,LogicalDevice,Status,&quot;{#PNPDEVICEID}&quot;]</key>
+                            <key>usbhasp[get,LogicalDevice,Status,{#PNPDEVICEID}]</key>
                             <delay>60</delay>
                             <history>7</history>
                             <trends>365</trends>
@@ -122,7 +122,7 @@ More details: https://www.zabbix.com/forum/showpost.php?p=96243&amp;postcount=4<
                     </item_prototypes>
                     <trigger_prototypes>
                         <trigger_prototype>
-                            <expression>{Template HASP:usbhasp[get,LogicalDevice,Status,&quot;{#PNPDEVICEID}&quot;].str(&quot;OK&quot;)}=0</expression>
+                            <expression>{Template HASP:usbhasp[get,LogicalDevice,Status,{#PNPDEVICEID}].str(&quot;OK&quot;)}=0</expression>
                             <name>Status of {#NAME} is not OK</name>
                             <url/>
                             <status>0</status>
@@ -521,7 +521,7 @@ More details: https://www.zabbix.com/forum/showpost.php?p=96243&amp;postcount=4<
                             <snmp_community/>
                             <multiplier>0</multiplier>
                             <snmp_oid/>
-                            <key>usbhasp[get,USBController,Status,&quot;{#PNPDEVICEID}&quot;]</key>
+                            <key>usbhasp[get,USBController,Status,{#PNPDEVICEID}]</key>
                             <delay>60</delay>
                             <history>7</history>
                             <trends>365</trends>
@@ -561,7 +561,7 @@ More details: https://www.zabbix.com/forum/showpost.php?p=96243&amp;postcount=4<
                     </item_prototypes>
                     <trigger_prototypes>
                         <trigger_prototype>
-                            <expression>{Template HASP:usbhasp[get,USBController,Status,&quot;{#PNPDEVICEID}&quot;].str(&quot;OK&quot;)}=0</expression>
+                            <expression>{Template HASP:usbhasp[get,USBController,Status,{#PNPDEVICEID}].str(&quot;OK&quot;)}=0</expression>
                             <name>Status of {#NAME} is not OK</name>
                             <url/>
                             <status>0</status>

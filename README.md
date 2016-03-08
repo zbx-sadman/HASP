@@ -2,7 +2,7 @@
 This is a little Powershell script that fetch metric's values from Sentinel/Aladdin HASP Network Monitor.
 Tanx to _Tor_ user for [HaspMonitor.exe](https://www.zabbix.com/forum/showpost.php?p=96243&postcount=4) utility.
 
-Actual release 1.0
+Actual release 1.1
 
 **Note**
 Since release v1.0 NetHASP Miner do not use _HaspMonitor.exe_ to avoid runtime overheads. Wrapper DLL for _hsmon.dll_ will be compiled on first run of the .ps1. 
@@ -20,14 +20,14 @@ Support objects:
 Actions:
 - _Discovery_ - Make Zabbix's LLD JSON;
 - _Get_       - Get metric of object collection's item;
-- _Count_     - Count collection's items.
-- _DoCommand_ - Do NetHASP Monitîr command that not required connection to server (HELP, VERSION). Command must be specified with -Key parameter
+- _Count_     - Count collection's items;
+- _DoCommand_ - Do NetHASP Monitîr command that not required connection to server (HELP, VERSION). Command must be specified with _-Key_ parameter.
 
 Zabbix's LLD available to: 
 - _Server_ ;
 - _Module_ ;
 - _Slot_ ;
-- _Login_ ;
+- _Login_ .
 
 ###How to use standalone
 At First - change inside .ps1 _HSMON_LIB_PATH_ variable's value to other, which point to place, where you store _hsmon.dll_ and _nethasp.ini_.
@@ -43,7 +43,7 @@ Now running of Miner so simple - just use parameters to specify:
 - _-ErrorCode_ - what must be returned if any process error will be reached;
 - _-ConsoleCP_ - codepage of Windows console. Need to properly convert output to UTF-8;
 - _-DefaultConsoleWidth_ - to leave default console width and not grow its to CONSOLE_WIDTH (see .ps1 code);
-- _-Verbose_ - to enable verbose messages;
+- _-Verbose_ - to enable verbose messages.
 
 Examples:
 
@@ -51,13 +51,13 @@ Examples:
     powershell -NoProfile -ExecutionPolicy "RemoteSigned" -File "nethasp.ps1" -Action "DoCommand" -Key "VERSION" -defaultConsoleWidth
 
     # Make Zabbix's LLD JSON for NetHASP servers
-    ... nethasp.ps1 -Action "Discovery" -Object "Server" 
+    ... "nethasp.ps1" -Action "Discovery" -Object "Server" 
 
     # Return number of used licenses on Slot #16 of stuffserver.contoso.com server. If processing error reached - return "-127"  
-    ... nethasp.ps1 -Action "Get" -Object "Slot" -Key "CURR" -ServerId "stuffserver.contoso.com" -SlotId "16" -ErrorCode "-127"
+    ... "nethasp.ps1" -Action "Get" -Object "Slot" -Key "CURR" -ServerId "stuffserver.contoso.com" -SlotId "16" -ErrorCode "-127"
 
     # Show formatted list of 'Module' object(s) metrics. Verbose messages is enabled. Console width is not changed.
-    ... nethasp.ps1 -Action "Get" -Object "Module" -defaultConsoleWidth -Verbose
+    ... "nethasp.ps1" -Action "Get" -Object "Module" -defaultConsoleWidth -Verbose
 
 
 ###How to use with Zabbix
@@ -76,20 +76,20 @@ Do not try import Zabbix v2.4 template to Zabbix _pre_ v2.4. You need to edit .x
 
 ###Hints
 - NetHASP server can periodically change Server ID. In this case use _-ServerId_ option with alphanumeric server name, that can be known by running script with  _-Action Get -Object Server_ options;
-- To see available metrics, run script only with _-Action Get -Object **Object**_ options;
-- To measure script runtime use _-Verbose_ command line switch;
+- To see available metrics, run script with _-Action Get -Object **Object**_ but without _-Key_ options;
+- To measure script run time use _-Verbose_ command line switch;
 - Use _-ErrorCode_ options for monitoring systems events/triggers to runtime errors detection;
 - Running the script with PowerShell 3 and above may be require to enable PowerShell 2 compatible mode.
 
 ## USBHASP
-The same that NetHASP Miner, but used for monitoring Sentinel/Aladdin HASP USB keys, which installed locally or binded with USB/IP.
+The same that NetHASP Miner, but used for monitoring Sentinel/Aladdin HASP USB license keys, which installed locally or binded with USB/IP.
 
-Actual release 1.0
+Actual release 1.1
 
 Tested on Windows Server 2008R2 SP1, USB/IP service, Powershell 2.0
 
 Support objects:
-- _USBController_ - "Physical" devices (USB Key, Win32_USBControllerDevice.Antecedent)
+- _USBController_ - "Physical" devices (USB Key, Win32_USBControllerDevice.Antecedent);
 - _LogicalDevice_ - "Logical" devices (HASP Key, Win32_USBControllerDevice.Dependent)
 
 Actions:
@@ -103,11 +103,11 @@ Actions:
     powershell -NoProfile -ExecutionPolicy "RemoteSigned" -File "usbhasp.ps1" -Action "Discovery" -Object "USBController"
 
     # Return number of HASP keys
-    ... usbhasp.ps1 -Action "Count" -Object "LogicalDevice"
+    ... "usbhasp.ps1" -Action "Count" -Object "LogicalDevice"
 
     # Show formatted list of 'USBController' object metrics selected by PnPId "USB\VID_0529&PID_0001\1&79F5D87&0&01". 
     # Verbose messages is enabled. Note that PNPDeviceID is unique for USB Key, Id - is not.
-    ... usbhasp.ps1 -Action "Get" -Object "USBController" -PnPDeviceID "USB\VID_0529&PID_0001\1&79F5D87&0&01" -defaultConsoleWidth -Verbose
+    ... "usbhasp.ps1" -Action "Get" -Object "USBController" -PnPDeviceID "USB\VID_0529&PID_0001\1&79F5D87&0&01" -defaultConsoleWidth -Verbose
 
 ###How to use with Zabbix
 1. Make setting to make unsigned .ps1 scripts executable for all time with _powershell.exe -command "Set-ExecutionPolicy RemoteSigned"_ or for once with _-ExecutionPolicy_ command line option;
