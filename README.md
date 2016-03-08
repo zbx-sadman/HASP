@@ -30,7 +30,7 @@ Zabbix's LLD available to:
 - _Login_ .
 
 ###How to use standalone
-At First - change inside .ps1 _HSMON_LIB_PATH_ variable's value to other, which point to place, where you store _hsmon.dll_ and _nethasp.ini_.
+At First - check value of variable _HSMON_LIB_PATH_ which placed inside .ps1. Choose - let script search all need files (_hsmon.dll, nethasp.ini, wraphsmon.dll_) in dir, from where its execute or use fixed path, that you set.
 
 Now running of Miner so simple - just use parameters to specify:
 - _-Action_  - what need to do with collection or its item;
