@@ -6,10 +6,10 @@
         Return Sentinel/Aladdin HASP Network Monitor metrics value, make LLD-JSON for Zabbix
 
     .NOTES  
-        Version: 1.1
+        Version: 1.2.0
         Name: Aladdin HASP Network Monitor Miner
         Author: zbx.sadman@gmail.com
-        DateCreated: 07MAR2016
+        DateCreated: 16MAR2016
         Testing environment: Windows Server 2008R2 SP1, Powershell 2.0, Aladdin HASP Network Monitor DLL 2.5.0.0 (hsmon.dll)
 
         Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. You must use **32-bit instance of PowerShell** to avoid runtime errors while used on 64-bit systems. Its may be placed here:_%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe.
@@ -153,7 +153,7 @@ Add-Type -TypeDefinition "public enum NetHASPObjectType { DumpType, Server, Modu
 #
 Function PropertyEqualOrAny {
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)] 
       [PSObject]$InputObject,
       [PSObject]$Property,
       [PSObject]$Value
@@ -161,7 +161,9 @@ Function PropertyEqualOrAny {
    Process {
       # Do something with all objects (non-pipelined input case)  
       ForEach ($Object in $InputObject) { 
-         If (($Object.$Property -Eq $Value) -Or (!$Value)) { $Object }
+         # IsNullorEmpty used because !$Value give a erong result with $Value = 0 (True).
+         # But 0 may be right ID  
+         If (($Object.$Property -Eq $Value) -Or ([string]::IsNullorEmpty($Value))) { $Object }
       }
    } 
 }
@@ -171,39 +173,48 @@ Function PropertyEqualOrAny {
 #
 Function PrepareTo-Zabbix {
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)] 
       [PSObject]$InputObject,
       [String]$ErrorCode,
-      [Switch]$NoEscape
+      [Switch]$NoEscape,
+      [Switch]$JSONCompatible
    );
    Begin {
       # Add here more symbols to escaping if you need
       $EscapedSymbols = @('\', '"');
+      $UnixEpoch = Get-Date -Date "01/01/1970";
    }
    Process {
       # Do something with all objects (non-pipelined input case)  
       ForEach ($Object in $InputObject) { 
-         If (!$Object) {
+         If ($Null -Eq $Object) {
            # Put empty string or $ErrorCode to output  
            If ($ErrorCode) { $ErrorCode } Else { "" }
            Continue;
          }
-         #Write-Verbose "$(Get-Date) Converting Windows DataTypes to equal Unix's / Zabbix's";
-         Switch (($Object.GetType()).Name) {
-            'String'   { }
-            'Boolean'  { $Object = [int]$Object; }
-            'DateTime' { $Object = (New-TimeSpan -Start (Get-Date -Date "01/01/1970") -End $Object).TotalSeconds; }
-             Default   { $Object = Out-String -InputObject $Object; }
+         # Need add doublequote around string for other objects when JSON compatible output requested?
+         $DoQuote = $False;
+         Switch (($Object.GetType()).FullName) {
+            'System.String'   { $DoQuote = $True; }
+            'System.Guid'     { $DoQuote = $True; }
+            'System.Boolean'  { $Object = [int]$Object; }
+            'System.DateTime' { $Object = (New-TimeSpan -Start $UnixEpoch -End $Object).TotalSeconds; }
          }
          # Normalize String object
          $Object = $Object.ToString().Trim();
-
+         
          If (!$NoEscape) { 
             ForEach ($Symbol in $EscapedSymbols) { 
                $Object = $Object.Replace($Symbol, "\$Symbol");
             }
          }
-         $Object;
+
+         # Doublequote object if adherence to JSON standart requested
+         If ($JSONCompatible -And $DoQuote) { 
+            "`"$Object`"";
+         } else {
+            $Object;
+         }
       }
    }
 }
@@ -228,7 +239,7 @@ Function ConvertTo-Encoding ([String]$From, [String]$To){
 #
 Function Make-JSON {
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)] 
       [PSObject]$InputObject, 
       [array]$ObjectProperties, 
       [Switch]$Pretty
@@ -245,6 +256,9 @@ Function Make-JSON {
    Process {
       # Do something with all objects (non-pipelined input case)  
       ForEach ($Object in $InputObject) {
+         # Skip object when its $Null
+         If ($Null -Eq $Object) { Continue; }
+
          If (-Not $itFirstObject) { $Result += ",$CRLF"; }
          $itFirstObject=$False;
          $Result += "$Tab$Tab{$Space"; 
@@ -253,7 +267,7 @@ Function Make-JSON {
          ForEach ($Property in $ObjectProperties) {
             If (-Not $itFirstProperty) { $Result += ",$Space" }
             $itFirstProperty = $False;
-            $Result += "`"{#$Property}`":$Space`"$(PrepareTo-Zabbix -InputObject $Object.$Property)`"";
+            $Result += "`"{#$Property}`":$Space$(PrepareTo-Zabbix -InputObject $Object.$Property -JSONCompatible)";
          }
          # No comma printed after last string
          $Result += "$Space}";
@@ -270,18 +284,20 @@ Function Make-JSON {
 #
 Function Get-Metric { 
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)] 
       [PSObject]$InputObject, 
-      [array]$Keys
+      [Array]$Keys
    ); 
    Process {
       # Do something with all objects (non-pipelined input case)  
       ForEach ($Object in $InputObject) { 
+        If ($Null -Eq $Object) { Continue; }
         # Expand all metrics related to keys contained in array step by step
-        ForEach ($Key in $Keys) { 
+        ForEach ($Key in $Keys) {              
            If ($Key) {
-              $Object = Select-Object -InputObject $Object -ExpandProperty $Key;
-	   }
+              $Object = Select-Object -InputObject $Object -ExpandProperty $Key -ErrorAction SilentlyContinue;
+              If ($Error) { Break; }
+           }
         }
         $Object;
       }
@@ -294,8 +310,8 @@ Function Get-Metric {
 Function Exit-WithMessage { 
    Param (
       [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
-      [String]$Message,
-      [String]$ErrorCode
+      [String]$Message, 
+      [String]$ErrorCode 
    ); 
    If ($ErrorCode) { 
       $ErrorCode;
@@ -418,7 +434,9 @@ Function Get-NetHASPData {
            # For every non-empty line do additional splitting to Property & Value by ',' and add its to hashtable
            $Properties = @{};
            ForEach ($Item in ($Line -Split ",")) {
-              $Property, $Value = $Item.Split('=');  `
+              $Property, $Value = $Item.Split('=');
+              # "HS" subpart workaround
+              if ($Null -Eq $Value) { $Value = "" }
               $Properties.$Property = $Value;
            } 
            # Return new PSObject with hashtable used as properties list
@@ -524,9 +542,6 @@ If (($ObjectType -As [NetHASPObjectType]) -Ge [NetHASPObjectType]::Login) {
    $Objects = $Logins = PropertyEqualOrAny -InputObject $Slots -Property INDEX -Value $LoginId
 }
 
-If (!$Objects) { 
-   Exit-WithMessage -Message "No objects found" -ErrorCode $ErrorCode;
-}
 
 ForEach ($Object in $Objects) {   
   Add-Member -InputObject $Object -MemberType NoteProperty -Name "ServerName" -Value (PropertyEqualOrAny -InputObject $Servers -Property ID -Value $Object.ID).Name;
@@ -556,17 +571,13 @@ switch ($Action) {
        $Result =  Make-JSON -InputObject $Objects -ObjectProperties $ObjectProperties -Pretty;
    }
    'Get' {
-      If (!$Objects) {
-          Exit-WithMessage -Message "No objects in collection" -ErrorCode $ErrorCode;
-      }
       If ($Keys) { 
          Write-Verbose "$(Get-Date) Getting metric related to key: '$Key'";
-         $Result = Get-Metric -InputObject $Objects -Keys $Keys;
+         $Result = PrepareTo-Zabbix -InputObject (Get-Metric -InputObject $Objects -Keys $Keys) -ErrorCode $ErrorCode;
       } Else { 
          Write-Verbose "$(Get-Date) Getting metric list due metric's Key not specified";
-         $Result = $Objects;
+         $Result = Out-String -InputObject $Objects;
       };
-      $Result = PrepareTo-Zabbix -InputObject $Result -ErrorCode $ErrorCode;
    }
    # Count selected objects
    'Count' { 
@@ -574,7 +585,6 @@ switch ($Action) {
       # if result not null, False or 0 - return .Count
       $Result = $(if ($Objects) { @($Objects).Count } else { 0 } ); 
    }
-   default  { Exit-WithMessage -Message "Unknown action: '$Action'" -ErrorCode $ErrorCode; }
 }  
 
 # Convert string to UTF-8 if need (For Zabbix LLD-JSON with Cyrillic chars for example)

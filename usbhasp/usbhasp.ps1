@@ -6,10 +6,10 @@
         Return USB (HASP) Device metrics value, count selected objects, make LLD-JSON for Zabbix
 
     .NOTES  
-        Version: 1.1
+        Version: 1.2.0
         Name: USB HASP Keys Miner
         Author: zbx.sadman@gmail.com
-        DateCreated: 07MAR2016
+        DateCreated: 16MAR2016
         Testing environment: Windows Server 2008R2 SP1, USB/IP service, Powershell 2.0
 
     .LINK  
@@ -106,7 +106,7 @@ Set-Variable -Name "CONSOLE_WIDTH" -Value 255 -Option Constant
 #
 Function PropertyEqualOrAny {
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)] 
       [PSObject]$InputObject,
       [PSObject]$Property,
       [PSObject]$Value
@@ -114,7 +114,9 @@ Function PropertyEqualOrAny {
    Process {
       # Do something with all objects (non-pipelined input case)  
       ForEach ($Object in $InputObject) { 
-         If (($Object.$Property -Eq $Value) -Or (!$Value)) { $Object }
+         # IsNullorEmpty used because !$Value give a erong result with $Value = 0 (True).
+         # But 0 may be right ID  
+         If (($Object.$Property -Eq $Value) -Or ([string]::IsNullorEmpty($Value))) { $Object }
       }
    } 
 }
@@ -124,39 +126,48 @@ Function PropertyEqualOrAny {
 #
 Function PrepareTo-Zabbix {
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)] 
       [PSObject]$InputObject,
       [String]$ErrorCode,
-      [Switch]$NoEscape
+      [Switch]$NoEscape,
+      [Switch]$JSONCompatible
    );
    Begin {
       # Add here more symbols to escaping if you need
       $EscapedSymbols = @('\', '"');
+      $UnixEpoch = Get-Date -Date "01/01/1970";
    }
    Process {
       # Do something with all objects (non-pipelined input case)  
       ForEach ($Object in $InputObject) { 
-         If (!$Object) {
+         If ($Null -Eq $Object) {
            # Put empty string or $ErrorCode to output  
            If ($ErrorCode) { $ErrorCode } Else { "" }
            Continue;
          }
-         #Write-Verbose "$(Get-Date) Converting Windows DataTypes to equal Unix's / Zabbix's";
-         Switch (($Object.GetType()).Name) {
-            'String'   { }
-            'Boolean'  { $Object = [int]$Object; }
-            'DateTime' { $Object = (New-TimeSpan -Start (Get-Date -Date "01/01/1970") -End $Object).TotalSeconds; }
-             Default   { $Object = Out-String -InputObject $Object; }
+         # Need add doublequote around string for other objects when JSON compatible output requested?
+         $DoQuote = $False;
+         Switch (($Object.GetType()).FullName) {
+            'System.String'   { $DoQuote = $True; }
+            'System.Guid'     { $DoQuote = $True; }
+            'System.Boolean'  { $Object = [int]$Object; }
+            'System.DateTime' { $Object = (New-TimeSpan -Start $UnixEpoch -End $Object).TotalSeconds; }
          }
          # Normalize String object
          $Object = $Object.ToString().Trim();
-
+         
          If (!$NoEscape) { 
             ForEach ($Symbol in $EscapedSymbols) { 
                $Object = $Object.Replace($Symbol, "\$Symbol");
             }
          }
-         $Object;
+
+         # Doublequote object if adherence to JSON standart requested
+         If ($JSONCompatible -And $DoQuote) { 
+            "`"$Object`"";
+         } else {
+            $Object;
+         }
       }
    }
 }
@@ -181,9 +192,9 @@ Function ConvertTo-Encoding ([String]$From, [String]$To){
 #
 Function Make-JSON {
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)] 
       [PSObject]$InputObject, 
-      [Array]$ObjectProperties, 
+      [array]$ObjectProperties, 
       [Switch]$Pretty
    ); 
    Begin   {
@@ -198,6 +209,9 @@ Function Make-JSON {
    Process {
       # Do something with all objects (non-pipelined input case)  
       ForEach ($Object in $InputObject) {
+         # Skip object when its $Null
+         If ($Null -Eq $Object) { Continue; }
+
          If (-Not $itFirstObject) { $Result += ",$CRLF"; }
          $itFirstObject=$False;
          $Result += "$Tab$Tab{$Space"; 
@@ -206,7 +220,7 @@ Function Make-JSON {
          ForEach ($Property in $ObjectProperties) {
             If (-Not $itFirstProperty) { $Result += ",$Space" }
             $itFirstProperty = $False;
-            $Result += "`"{#$Property}`":$Space`"$(PrepareTo-Zabbix -InputObject $Object.$Property)`"";
+            $Result += "`"{#$Property}`":$Space$(PrepareTo-Zabbix -InputObject $Object.$Property -JSONCompatible)";
          }
          # No comma printed after last string
          $Result += "$Space}";
@@ -223,18 +237,20 @@ Function Make-JSON {
 #
 Function Get-Metric { 
    Param (
-      [Parameter(Mandatory = $True, ValueFromPipeline = $True)] 
+      [Parameter(ValueFromPipeline = $True)] 
       [PSObject]$InputObject, 
       [Array]$Keys
    ); 
    Process {
       # Do something with all objects (non-pipelined input case)  
       ForEach ($Object in $InputObject) { 
+        If ($Null -Eq $Object) { Continue; }
         # Expand all metrics related to keys contained in array step by step
-        ForEach ($Key in $Keys) { 
+        ForEach ($Key in $Keys) {              
            If ($Key) {
-              $Object = Select-Object -InputObject $Object -ExpandProperty $Key;
-	   }
+              $Object = Select-Object -InputObject $Object -ExpandProperty $Key -ErrorAction SilentlyContinue;
+              If ($Error) { Break; }
+           }
         }
         $Object;
       }
@@ -268,11 +284,7 @@ $Keys = $Key.Split(".");
 
 Write-Verbose "$(Get-Date) Taking Win32_USBControllerDevice collection with WMI"
 $Objects = Get-WmiObject -Class "Win32_USBControllerDevice";
-If (!$Objects) {
-     Exit-WithMessage -Message "No devices found" -ErrorCode $ErrorCode; 
-}
 
-#  $Objects
 Write-Verbose "$(Get-Date) Creating collection of specified object: '$ObjectType'";
 Switch ($ObjectType) {
    'LogicalDevice' { 
@@ -281,7 +293,6 @@ Switch ($ObjectType) {
    'USBController' { 
       $PropertyToSelect = 'Antecedent';    
    }
-   Default         { Exit-WithMessage -Message "Unknown object type: '$ObjectType'" -ErrorCode $ErrorCode; }
 }
 
 # Need to take Unique items due Senintel used multiply logical devices linked to physical keys. 
@@ -295,7 +306,6 @@ $Objects = $( ForEach ($Object In $Objects) {
                  PropertyEqualOrAny -InputObject ([Wmi]$Object.$PropertyToSelect) -Property PnPDeviceID -Value $PnPDeviceID
            }) | Sort-Object -Property PnPDeviceID -Unique;
 
-
 Write-Verbose "$(Get-Date) Processing collection with action: '$Action' ";
 Switch ($Action) {
    # Discovery given object, make json for zabbix
@@ -306,17 +316,13 @@ Switch ($Action) {
    }
    # Get metrics or metric list
    'Get' {
-      If (!$Objects) {
-          Exit-WithMessage -Message "No objects in collection" -ErrorCode $ErrorCode;
-      }
       If ($Keys) { 
          Write-Verbose "$(Get-Date) Getting metric related to key: '$Key'";
-         $Result = Get-Metric -InputObject $Objects -Keys $Keys;
+         $Result = PrepareTo-Zabbix -InputObject (Get-Metric -InputObject $Objects -Keys $Keys) -ErrorCode $ErrorCode;
       } Else { 
          Write-Verbose "$(Get-Date) Getting metric list due metric's Key not specified";
-         $Result = $Objects;
+         $Result = Out-String -InputObject $Objects;
       };
-      $Result = PrepareTo-Zabbix -InputObject $Result -ErrorCode $ErrorCode;
    }
    # Count selected objects
    'Count' { 
@@ -324,7 +330,6 @@ Switch ($Action) {
       # if result not null, False or 0 - return .Count
       $Result = $( If ($Objects) { @($Objects).Count } Else { 0 } ); 
    }
-   Default { Exit-WithMessage -Message "Unknown action: '$Action'" -ErrorCode $ErrorCode; }
 }
 
 # Convert string to UTF-8 if need (For Zabbix LLD-JSON with Cyrillic chars for example)

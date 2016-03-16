@@ -2,7 +2,7 @@
 This is a little Powershell script that fetch metric's values from Sentinel/Aladdin HASP Network Monitor.
 Tanx to _Tor_ user for [HaspMonitor.exe](https://www.zabbix.com/forum/showpost.php?p=96243&postcount=4) utility.
 
-Actual release 1.1
+Actual release 1.2.0
 
 **Note**
 Since release v1.0 NetHASP Miner do not use _HaspMonitor.exe_ to avoid runtime overheads. Wrapper DLL for _hsmon.dll_ will be compiled on first run of the .ps1. 
@@ -84,7 +84,7 @@ Do not try import Zabbix v2.4 template to Zabbix _pre_ v2.4. You need to edit .x
 ## USBHASP
 The same that NetHASP Miner, but used for monitoring Sentinel/Aladdin HASP USB license keys, which installed locally or binded with USB/IP.
 
-Actual release 1.1
+Actual release 1.2.0
 
 Tested on Windows Server 2008R2 SP1, USB/IP service, Powershell 2.0
 
