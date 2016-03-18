@@ -6,10 +6,10 @@
         Return Sentinel/Aladdin HASP Network Monitor metrics value, make LLD-JSON for Zabbix
 
     .NOTES  
-        Version: 1.2.0
+        Version: 1.2.1
         Name: Aladdin HASP Network Monitor Miner
         Author: zbx.sadman@gmail.com
-        DateCreated: 16MAR2016
+        DateCreated: 18MAR2016
         Testing environment: Windows Server 2008R2 SP1, Powershell 2.0, Aladdin HASP Network Monitor DLL 2.5.0.0 (hsmon.dll)
 
         Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. You must use **32-bit instance of PowerShell** to avoid runtime errors while used on 64-bit systems. Its may be placed here:_%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe.
@@ -24,7 +24,7 @@
             Count     - Count collection's items.
             DoCommand - Do NetHASP Monitor command that not require connection to server (HELP, VERSION). Command must be specified with -Key parameter
 
-    .PARAMETER Object
+    .PARAMETER ObjectType
         Define rule to make collection:
             Server - NetHASP server (detected with "GET SERVERS" command);
             Slot - NetHASP key slot ("GET SLOTS ...");
@@ -68,21 +68,21 @@
         Get output of NetHASP Monitor VERSION command
 
     .EXAMPLE 
-        ... "nethasp.ps1" -Action "Discovery" -Object "Server" 
+        ... "nethasp.ps1" -Action "Discovery" -ObjectType "Server" 
 
         Description
         -----------  
         Make Zabbix's LLD JSON for NetHASP servers
 
     .EXAMPLE 
-        ... "nethasp.ps1" -Action "Get" -Object "Slot" -Key "CURR" -ServerId "stuffserver.contoso.com" -SlotId "16" -ErrorCode "-127"
+        ... "nethasp.ps1" -Action "Get" -ObjectType "Slot" -Key "CURR" -ServerId "stuffserver.contoso.com" -SlotId "16" -ErrorCode "-127"
 
         Description
         -----------  
         Return number of used licenses on Slot #16 of stuffserver.contoso.com server. If processing error reached - return "-127"  
 
     .EXAMPLE 
-        ... "nethasp.ps1" -Action "Get" -Object "Module" -defaultConsoleWidth -Verbose
+        ... "nethasp.ps1" -Action "Get" -ObjectType "Module" -defaultConsoleWidth -Verbose
 
         Description
         -----------  
@@ -195,13 +195,12 @@ Function PrepareTo-Zabbix {
          # Need add doublequote around string for other objects when JSON compatible output requested?
          $DoQuote = $False;
          Switch (($Object.GetType()).FullName) {
-            'System.String'   { $DoQuote = $True; }
-            'System.Guid'     { $DoQuote = $True; }
             'System.Boolean'  { $Object = [int]$Object; }
             'System.DateTime' { $Object = (New-TimeSpan -Start $UnixEpoch -End $Object).TotalSeconds; }
+            Default           { $DoQuote = $True; }
          }
          # Normalize String object
-         $Object = $Object.ToString().Trim();
+         $Object = $( If ($JSONCompatible) { $Object.ToString() } else { $Object | Out-String }).Trim();
          
          If (!$NoEscape) { 
             ForEach ($Symbol in $EscapedSymbols) { 

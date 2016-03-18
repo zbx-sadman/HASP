@@ -6,10 +6,10 @@
         Return USB (HASP) Device metrics value, count selected objects, make LLD-JSON for Zabbix
 
     .NOTES  
-        Version: 1.2.0
+        Version: 1.2.1
         Name: USB HASP Keys Miner
         Author: zbx.sadman@gmail.com
-        DateCreated: 16MAR2016
+        DateCreated: 18MAR2016
         Testing environment: Windows Server 2008R2 SP1, USB/IP service, Powershell 2.0
 
     .LINK  
@@ -21,7 +21,7 @@
             Get       - Get metric from collection item;
             Count     - Count collection items.
 
-    .PARAMETER Object
+    .PARAMETER ObjectType
         Define rule to make collection:
             USBController - "Physical" devices (USB Key)
             LogicalDevice - "Logical" devices (HASP Key)
@@ -45,21 +45,21 @@
         Enable verbose messages
 
     .EXAMPLE 
-        powershell.exe -NoProfile -ExecutionPolicy "RemoteSigned" -File "usbhasp.ps1" -Action "Discovery" -Object "USBController"
+        powershell.exe -NoProfile -ExecutionPolicy "RemoteSigned" -File "usbhasp.ps1" -Action "Discovery" -ObjectType "USBController"
 
         Description
         -----------  
         Make Zabbix's LLD JSON for USB keys
 
     .EXAMPLE 
-        ... "usbhasp.ps1" -Action "Count" -Object "LogicalDevice"
+        ... "usbhasp.ps1" -Action "Count" -ObjectType "LogicalDevice"
 
         Description
         -----------  
         Return number of HASP keys
 
     .EXAMPLE 
-        ... "usbhasp.ps1" -Action "Get" -Object "USBController" -PnPDeviceID "USB\VID_0529&PID_0001\1&79F5D87&0&01" -ErrorCode "-127" -DefaultConsoleWidth -Verbose
+        ... "usbhasp.ps1" -Action "Get" -ObjectType "USBController" -PnPDeviceID "USB\VID_0529&PID_0001\1&79F5D87&0&01" -ErrorCode "-127" -DefaultConsoleWidth -Verbose
 
         Description
         -----------  
@@ -148,13 +148,12 @@ Function PrepareTo-Zabbix {
          # Need add doublequote around string for other objects when JSON compatible output requested?
          $DoQuote = $False;
          Switch (($Object.GetType()).FullName) {
-            'System.String'   { $DoQuote = $True; }
-            'System.Guid'     { $DoQuote = $True; }
             'System.Boolean'  { $Object = [int]$Object; }
             'System.DateTime' { $Object = (New-TimeSpan -Start $UnixEpoch -End $Object).TotalSeconds; }
+            Default           { $DoQuote = $True; }
          }
          # Normalize String object
-         $Object = $Object.ToString().Trim();
+         $Object = $( If ($JSONCompatible) { $Object.ToString() } else { $Object | Out-String }).Trim();
          
          If (!$NoEscape) { 
             ForEach ($Symbol in $EscapedSymbols) { 
