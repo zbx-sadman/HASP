@@ -76,7 +76,7 @@ Do not try import Zabbix v2.4 template to Zabbix _pre_ v2.4. You need to edit .x
 
 ###Hints
 - NetHASP server can periodically change Server ID. In this case use _-ServerId_ option with alphanumeric server name, that can be known by running script with  _-Action Get -Object Server_ options;
-- To see available metrics, run script with _-Action Get -Object **Object**_ but without _-Key_ options;
+- To see keys, run script without **-Key** option: _... "nethasp.ps1" -Action "Get" -Object "**Object**"_ ;
 - To measure script run time use _-Verbose_ command line switch;
 - Use _-ErrorCode_ options for monitoring systems events/triggers to runtime errors detection;
 - Running the script with PowerShell 3 and above may be require to enable PowerShell 2 compatible mode.
