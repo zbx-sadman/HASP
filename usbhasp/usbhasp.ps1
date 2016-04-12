@@ -6,10 +6,10 @@
         Return USB (HASP) Device metrics value, count selected objects, make LLD-JSON for Zabbix
 
     .NOTES  
-        Version: 1.2.1
+        Version: 1.2.2
         Name: USB HASP Keys Miner
         Author: zbx.sadman@gmail.com
-        DateCreated: 18MAR2016
+        DateCreated: 12APR2016
         Testing environment: Windows Server 2008R2 SP1, USB/IP service, Powershell 2.0
 
     .LINK  
@@ -153,7 +153,7 @@ Function PrepareTo-Zabbix {
             Default           { $DoQuote = $True; }
          }
          # Normalize String object
-         $Object = $( If ($JSONCompatible) { $Object.ToString() } else { $Object | Out-String }).Trim();
+         $Object = $( If ($JSONCompatible) { $Object.ToString().Trim() } else { Out-String -InputObject (Format-List -InputObject $Object -Property *) });         
          
          If (!$NoEscape) { 
             ForEach ($Symbol in $EscapedSymbols) { 
@@ -306,30 +306,31 @@ $Objects = $( ForEach ($Object In $Objects) {
            }) | Sort-Object -Property PnPDeviceID -Unique;
 
 Write-Verbose "$(Get-Date) Processing collection with action: '$Action' ";
-Switch ($Action) {
-   # Discovery given object, make json for zabbix
-   'Discovery' {
-      Write-Verbose "$(Get-Date) Generating LLD JSON";
-      $ObjectProperties = @("NAME", "PNPDEVICEID");
-      $Result = Make-JSON -InputObject $Objects -ObjectProperties $ObjectProperties -Pretty;
-   }
-   # Get metrics or metric list
-   'Get' {
-      If ($Keys) { 
+
+$Result = $(
+   # if no object in collection: 1) JSON must be empty; 2) 'Get' must be able to return ErrorCode
+   Switch ($Action) {
+      # Discovery given object, make json for zabbix
+      'Discovery' {
+         Write-Verbose "$(Get-Date) Generating LLD JSON";
+         $ObjectProperties = @("NAME", "PNPDEVICEID");
+         Make-JSON -InputObject $Objects -ObjectProperties $ObjectProperties -Pretty;
+      }
+      'Get' {
+         # Get metrics or metric list
          Write-Verbose "$(Get-Date) Getting metric related to key: '$Key'";
-         $Result = PrepareTo-Zabbix -InputObject (Get-Metric -InputObject $Objects -Keys $Keys) -ErrorCode $ErrorCode;
-      } Else { 
-         Write-Verbose "$(Get-Date) Getting metric list due metric's Key not specified";
-         $Result = Out-String -InputObject $Objects;
-      };
+         PrepareTo-Zabbix -InputObject (Get-Metric -InputObject $Objects -Keys $Keys) -ErrorCode $ErrorCode;
+      }
+      # Count selected objects
+      'Count' { 
+         Write-Verbose "$(Get-Date) Counting objects";  
+         $Count = 0;
+         # ++ must be faster that .Count, due don't enumerate object list
+         ForEach ($Object in $Objects) { $Count++; }
+         $Count;
+      }
    }
-   # Count selected objects
-   'Count' { 
-      Write-Verbose "$(Get-Date) Counting objects";  
-      # if result not null, False or 0 - return .Count
-      $Result = $( If ($Objects) { @($Objects).Count } Else { 0 } ); 
-   }
-}
+);
 
 # Convert string to UTF-8 if need (For Zabbix LLD-JSON with Cyrillic chars for example)
 If ($consoleCP) { 

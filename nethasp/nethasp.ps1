@@ -6,10 +6,10 @@
         Return Sentinel/Aladdin HASP Network Monitor metrics value, make LLD-JSON for Zabbix
 
     .NOTES  
-        Version: 1.2.1
+        Version: 1.2.2
         Name: Aladdin HASP Network Monitor Miner
         Author: zbx.sadman@gmail.com
-        DateCreated: 18MAR2016
+        DateCreated: 12APR2016
         Testing environment: Windows Server 2008R2 SP1, Powershell 2.0, Aladdin HASP Network Monitor DLL 2.5.0.0 (hsmon.dll)
 
         Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. You must use **32-bit instance of PowerShell** to avoid runtime errors while used on 64-bit systems. Its may be placed here:_%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe.
@@ -200,7 +200,7 @@ Function PrepareTo-Zabbix {
             Default           { $DoQuote = $True; }
          }
          # Normalize String object
-         $Object = $( If ($JSONCompatible) { $Object.ToString() } else { $Object | Out-String }).Trim();
+         $Object = $( If ($JSONCompatible) { $Object.ToString().Trim() } else { Out-String -InputObject (Format-List -InputObject $Object -Property *) });         
          
          If (!$NoEscape) { 
             ForEach ($Symbol in $EscapedSymbols) { 
@@ -548,43 +548,35 @@ ForEach ($Object in $Objects) {
 }
 
 Write-Verbose "$(Get-Date) Collection created, begin processing its with action: '$Action'";
-switch ($Action) {
-   'Discovery' {
-      [Array]$ObjectProperties = @();
-      Switch ($ObjectType) {
-          'Server' {
-             $ObjectProperties = @("SERVERNAME", "SERVERID");
-          }
-          'Module' {
+$Result = $(
+   # if no object in collection: 1) JSON must be empty; 2) 'Get' must be able to return ErrorCode
+   Switch ($Action) {
+      'Discovery' {
+         [Array]$ObjectProperties = @();
+         Switch ($ObjectType) {
+             'Server' { $ObjectProperties = @("SERVERNAME", "SERVERID"); }
              # MA - module address 
-             $ObjectProperties = @("SERVERNAME", "SERVERID", "MA", "MAX");
-          }
-          'Slot'   {
-             $ObjectProperties = @("SERVERNAME", "SERVERID", "MA", "SLOT", "MAX");
-          }
-          'Login' {
-             $ObjectProperties = @("SERVERNAME", "SERVERID", "MA", "SLOT", "INDEX", "NAME");
-          }
-       }
-       Write-Verbose "$(Get-Date) Generating LLD JSON";
-       $Result =  Make-JSON -InputObject $Objects -ObjectProperties $ObjectProperties -Pretty;
-   }
-   'Get' {
-      If ($Keys) { 
+             'Module' { $ObjectProperties = @("SERVERNAME", "SERVERID", "MA", "MAX"); }
+             'Slot'   { $ObjectProperties = @("SERVERNAME", "SERVERID", "MA", "SLOT", "MAX");}
+             'Login'  { $ObjectProperties = @("SERVERNAME", "SERVERID", "MA", "SLOT", "INDEX", "NAME"); }
+         }
+         Write-Verbose "$(Get-Date) Generating LLD JSON";
+         Make-JSON -InputObject $Objects -ObjectProperties $ObjectProperties -Pretty;
+      }
+      'Get' {
          Write-Verbose "$(Get-Date) Getting metric related to key: '$Key'";
-         $Result = PrepareTo-Zabbix -InputObject (Get-Metric -InputObject $Objects -Keys $Keys) -ErrorCode $ErrorCode;
-      } Else { 
-         Write-Verbose "$(Get-Date) Getting metric list due metric's Key not specified";
-         $Result = Out-String -InputObject $Objects;
-      };
-   }
-   # Count selected objects
-   'Count' { 
-      Write-Verbose "$(Get-Date) Counting objects";  
-      # if result not null, False or 0 - return .Count
-      $Result = $(if ($Objects) { @($Objects).Count } else { 0 } ); 
-   }
-}  
+         PrepareTo-Zabbix -InputObject (Get-Metric -InputObject $Objects -Keys $Keys) -ErrorCode $ErrorCode;
+      }
+      # Count selected objects
+      'Count' { 
+         Write-Verbose "$(Get-Date) Counting objects";  
+         $Count = 0;
+         # ++ must be faster that .Count, due don't enumerate object list
+         ForEach ($Object in $Objects) { $Count++; }
+         $Count;
+      }
+   }  
+);
 
 # Convert string to UTF-8 if need (For Zabbix LLD-JSON with Cyrillic chars for example)
 If ($consoleCP) { 
