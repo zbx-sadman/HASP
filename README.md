@@ -118,4 +118,5 @@ Actions:
 6. Enjoy again.
  
 ###Hints
-- Be sure that you filter LLD to leave only 'HASP' or 'ALADDIN' records.
+- Be sure that you filter LLD to leave only 'HASP' or 'ALADDIN' records;
+- Do not forget to use Zabbix agent's "UnsafeUserParameters=1" option  to avoid "ZBX_NOTSUPPORTED: Special characters ...  are not allowed in the parameters" error.
