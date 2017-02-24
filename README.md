@@ -5,6 +5,9 @@ Tanx to _Tor_ user for [HaspMonitor.exe](https://www.zabbix.com/forum/showpost.p
 Actual release 1.2.0
 
 **Note**
+if you find a memory leak on yours Windows OS when you start using a script - just update the HASP drivers. Aladdin's drivers is source of leaks, probably.
+
+**Note**
 Since release v1.0 NetHASP Miner do not use _HaspMonitor.exe_ to avoid runtime overheads. Wrapper DLL for _hsmon.dll_ will be compiled on first run of the .ps1. 
 By virtue of certain .NET procedures first run will be longer that other. Do not be nervous. 
 
