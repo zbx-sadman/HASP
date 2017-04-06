@@ -32,7 +32,7 @@ Zabbix's LLD available to:
 - _Slot_ ;
 - _Login_ .
 
-###How to use standalone
+### How to use standalone
 At First - check value of variable _HSMON_LIB_PATH_ which placed inside .ps1. Choose - let script search all need files (_hsmon.dll, nethasp.ini, wraphsmon.dll_) in dir, from where its execute or use fixed path, that you set.
 
 Now running of Miner so simple - just use parameters to specify:
@@ -63,7 +63,7 @@ Examples:
     ... "nethasp.ps1" -Action "Get" -Object "Module" -defaultConsoleWidth -Verbose
 
 
-###How to use with Zabbix
+### How to use with Zabbix
 1. Just include [zbx_hasp.conf](https://github.com/zbx-sadman/hasp/tree/master/Zabbix_Templates/zbx_hasp.conf) to Zabbix Agent config;
 2. Check path to 32-bit PowerShell instance in _zbx_hasp.conf_ and change its if you need;
 3. Put _nethasp.ps1, hsmon.dll, nethasp.ini_ to _C:\zabbix\scripts\nethasp_ dir;
@@ -77,7 +77,7 @@ Examples:
 **Note**
 Do not try import Zabbix v2.4 template to Zabbix _pre_ v2.4. You need to edit .xml file and make some changes at discovery_rule - filter tags area and change _#_ to _<>_ in trigger expressions. I will try to make template to old Zabbix.
 
-###Hints
+### Hints
 - NetHASP server can periodically change Server ID. In this case use _-ServerId_ option with alphanumeric server name, that can be known by running script with  _-Action Get -Object Server_ options;
 - To see keys, run script without **-Key** option: _... "nethasp.ps1" -Action "Get" -Object "**Object**"_ ;
 - To measure script run time use _-Verbose_ command line switch;
@@ -100,7 +100,7 @@ Actions:
 - _Get_       - Get metric of object collection item;
 - _Count_     - Count collection items.
 
-###How to use standalone
+### How to use standalone
 
     # Make Zabbix's LLD JSON for USB keys
     powershell -NoProfile -ExecutionPolicy "RemoteSigned" -File "usbhasp.ps1" -Action "Discovery" -Object "USBController"
@@ -112,7 +112,7 @@ Actions:
     # Verbose messages is enabled. Note that PNPDeviceID is unique for USB Key, Id - is not.
     ... "usbhasp.ps1" -Action "Get" -Object "USBController" -PnPDeviceID "USB\VID_0529&PID_0001\1&79F5D87&0&01" -defaultConsoleWidth -Verbose
 
-###How to use with Zabbix
+### How to use with Zabbix
 1. Make setting to make unsigned .ps1 scripts executable for all time with _powershell.exe -command "Set-ExecutionPolicy RemoteSigned"_ or for once with _-ExecutionPolicy_ command line option;
 2. Just include [zbx\_hasp.conf](https://github.com/zbx-sadman/HASP/tree/master/Zabbix_Templates/zbx_hasp.conf) to Zabbix Agent config;
 3. Move _usbhasp.ps1_ to _C:\zabbix\scripts_ dir;
@@ -120,6 +120,6 @@ Actions:
 5. Import [template](https://github.com/zbx-sadman/HASP/tree/master/Zabbix_Templates) to Zabbix Server;
 6. Enjoy again.
  
-###Hints
+### Hints
 - Be sure that you filter LLD to leave only 'HASP' or 'ALADDIN' records;
 - Do not forget to use Zabbix agent's "UnsafeUserParameters=1" option  to avoid "ZBX_NOTSUPPORTED: Special characters ...  are not allowed in the parameters" error.
