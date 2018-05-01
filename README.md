@@ -5,14 +5,14 @@ Tanx to _Tor_ user for [HaspMonitor.exe](https://www.zabbix.com/forum/showpost.p
 Actual release 1.2.0
 
 **Note**
-if you find a memory leak on yours Windows OS when you start using a script - just update the HASP drivers. Aladdin's drivers is source of leaks, probably.
+if you detect memory leak on your Windows OS when begin using the script - just update the HASP drivers. Aladdin's drivers can be leaks reason.
 
 **Note**
-Since release v1.0 NetHASP Miner do not use _HaspMonitor.exe_ to avoid runtime overheads. Wrapper DLL for _hsmon.dll_ will be compiled on first run of the .ps1. 
-By virtue of certain .NET procedures first run will be longer that other. Do not be nervous. 
+Since release v1.0 NetHASP Miner do not use _HaspMonitor.exe_ to avoid runtime overheads.  _hsmon.dll_ wrapper will be compiled on the script's first call. 
+By virtue of certain .NET procedures first run will be longer that other. Keep calm, please. 
 
 **Note**
-Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. To avoid errors while run script on 64-bit systems you must use **32-bit instance of PowerShell**. Its may be placed here: _%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe_.
+Due _hsmon.dll_ compiled to 32-bit systems, you need to provide 32-bit environment to run all code, that use that DLL. To avoid errors when script is running on 64-bit systems **32-bit instance of PowerShell** must be used. It may be placed here: _%WINDIR%\SysWOW64\WindowsPowerShell\v1.0\powershell.exe_.
 
 Support objects:
 - _Server_ - NetHASP server that can detected with "GET SERVERS" command;
@@ -33,19 +33,19 @@ Zabbix's LLD available to:
 - _Login_ .
 
 ### How to use standalone
-At First - check value of variable _HSMON_LIB_PATH_ which placed inside .ps1. Choose - let script search all need files (_hsmon.dll, nethasp.ini, wraphsmon.dll_) in dir, from where its execute or use fixed path, that you set.
+At First - check value of variable _HSMON_LIB_PATH_ which placed inside .ps1. Choose one - let script search all need files (_hsmon.dll, nethasp.ini, wraphsmon.dll_) in dir, from where it executed or use fixed path, that you set manually.
 
 Now running of Miner so simple - just use parameters to specify:
-- _-Action_  - what need to do with collection or its item;
-- _-Object_  - rule to make collection;
+- _-Action_  - what need to do with collection or items;
+- _-Object_  - what will be collected;
 - _-Key_     - "path" to collection item's metric;
-- _-ServerID_ - to select NetHASP server from list;
-- _-ModuleID_ - to additional objects selecting by Module Address;
-- _-SlotID_   - to additional objects selecting by Slot;
-- _-LoginID_  - to additional objects selecting by login Index;
-- _-ErrorCode_ - what must be returned if any process error will be reached;
+- _-ServerID_ - to point NetHASP server from list;
+- _-ModuleID_ - to make additional objects selecting by Module Address;
+- _-SlotID_   - to make additional objects selecting by Slot;
+- _-LoginID_  - to make additional objects selecting by login Index;
+- _-ErrorCode_ - what must be returned if any process error will be occurs;
 - _-ConsoleCP_ - codepage of Windows console. Need to properly convert output to UTF-8;
-- _-DefaultConsoleWidth_ - to leave default console width and not grow its to CONSOLE_WIDTH (see .ps1 code);
+- _-DefaultConsoleWidth_ - to leave default console width and not change it size to CONSOLE_WIDTH (see .ps1 code);
 - _-Verbose_ - to enable verbose messages.
 
 Examples:
