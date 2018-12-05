@@ -407,7 +407,7 @@ Function Get-NetHASPData {
          Start-Sleep -seconds 1
          $ScanSeconds++; $Result = ([HASP.Monitor]::doCmd("STATUS")).Trim();
          #Write-Verbose "$(Get-Date) Status: $ret"
-      } While (('OK' -ne $Result) -And ($ScanSeconds -Lt $HSMON_SCAN_TIMEOUT))
+      } While (('OK' -ne $Result) -And ($ScanSeconds -Lt $HSMON_SCAN_TIMEOUT));
 
       # Scanning timeout :(
       If ($ScanSeconds -Eq $HSMON_SCAN_TIMEOUT) {
@@ -510,7 +510,7 @@ if (($ObjectType -As [NetHASPObjectType]) -Ge [NetHASPObjectType]::Server) {
       }
    }
    Write-Verbose "$(Get-Date) Filtering... (ID=$ServerId)";
-   $Objects = $Servers = PropertyEqualOrAny -InputObject $Servers -Property ID -Value $ServerId
+   $Objects = $Servers = PropertyEqualOrAny -InputObject $Servers -Property ID -Value $ServerId;
 }
 
 # Object must be processed with Servers data?
@@ -519,7 +519,7 @@ if (($ObjectType -As [NetHASPObjectType]) -ge [NetHASPObjectType]::Module) {
    $Modules = ForEach ($Server in $Servers) { 
       Get-NetHASPData -Command "GET MODULES,ID=$($Server.ID)" -SkipScanning; 
    }
-   $Objects = $Modules = PropertyEqualOrAny -InputObject $Modules -Property MA -Value $ModuleId
+   $Objects = $Modules = PropertyEqualOrAny -InputObject $Modules -Property MA -Value $ModuleId;
 }
 
 # Object must be processed with Servers+Modules data?
@@ -528,7 +528,7 @@ if (($ObjectType -As [NetHASPObjectType]) -ge [NetHASPObjectType]::Slot) {
    $Slots = ForEach ($Module in $Modules) { 
       Get-NetHASPData -Command "GET SLOTS,ID=$($Module.ID),MA=$($Module.MA)" -SkipScanning; 
    }
-   $Objects = $Slots = PropertyEqualOrAny -InputObject $Slots -Property SLOT -Value $SlotId
+   $Objects = $Slots = PropertyEqualOrAny -InputObject $Slots -Property SLOT -Value $SlotId;
 }
 
 # Object must be processed with Servers+Modules+Slots data?
@@ -538,13 +538,13 @@ If (($ObjectType -As [NetHASPObjectType]) -Ge [NetHASPObjectType]::Login) {
    $Logins = ForEach ($Slot In $Slots) { 
       Get-NetHASPData -Command "GET LOGINS,ID=$($Slot.ID),MA=$($Slot.MA),SLOT=$($Slot.SLOT)" -SkipScanning;
    }
-   $Objects = $Logins = PropertyEqualOrAny -InputObject $Slots -Property INDEX -Value $LoginId
+   $Objects = $Logins = PropertyEqualOrAny -InputObject $Logins -Property INDEX -Value $LoginId;
 }
 
 
 ForEach ($Object in $Objects) {   
   Add-Member -InputObject $Object -MemberType NoteProperty -Name "ServerName" -Value (PropertyEqualOrAny -InputObject $Servers -Property ID -Value $Object.ID).Name;
-  Add-Member -InputObject $Object -MemberType AliasProperty -Name "ServerID" -Value ID
+  Add-Member -InputObject $Object -MemberType AliasProperty -Name "ServerID" -Value ID;
 }
 
 Write-Verbose "$(Get-Date) Collection created, begin processing its with action: '$Action'";
